@@ -23,7 +23,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8080}/realms/cocktail-realm
+          # Usa solo jwk-set-uri senza issuer-uri per accettare token da localhost E keycloak
           jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8080}/realms/cocktail-realm/protocol/openid-connect/certs
 
 keycloak:
@@ -31,6 +31,16 @@ keycloak:
   auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8080}
   resource: cocktail-client
   public-client: true
+
+# Springdoc OpenAPI / Swagger UI
+springdoc:
+  swagger-ui:
+    oauth:
+      client-id: cocktail-client
+      use-pkce-with-authorization-code-grant: false
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
   
 logging:
   level:
@@ -50,7 +60,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://keycloak:8080/realms/cocktail-realm
+          # Usa solo jwk-set-uri per validare la firma, accetta token da localhost (browser) e keycloak (Docker)
           jwk-set-uri: http://keycloak:8080/realms/cocktail-realm/protocol/openid-connect/certs
 
 keycloak:
