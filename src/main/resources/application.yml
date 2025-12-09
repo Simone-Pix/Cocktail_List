@@ -1,0 +1,57 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: cocktail-list
+  
+  datasource:
+    url: jdbc:mysql://localhost:3306/cocktails
+    username: cocktail_user
+    password: cocktail_pass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8080}/realms/cocktail-realm
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8080}/realms/cocktail-realm/protocol/openid-connect/certs
+
+keycloak:
+  realm: cocktail-realm
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8080}
+  resource: cocktail-client
+  public-client: true
+  
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.keycloak: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:mysql://mysql:3306/cocktails
+    username: cocktail_user
+    password: cocktail_pass
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/cocktail-realm
+          jwk-set-uri: http://keycloak:8080/realms/cocktail-realm/protocol/openid-connect/certs
+
+keycloak:
+  auth-server-url: http://keycloak:8080
