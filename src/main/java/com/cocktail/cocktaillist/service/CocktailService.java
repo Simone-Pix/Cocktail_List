@@ -1,6 +1,9 @@
 package com.cocktail.cocktaillist.service;
 
+import com.cocktail.cocktaillist.dto.CocktailRequest;
+import com.cocktail.cocktaillist.dto.IngredientRequest;
 import com.cocktail.cocktaillist.model.Cocktail;
+import com.cocktail.cocktaillist.model.Ingredient;
 import com.cocktail.cocktaillist.repository.CocktailRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,12 +27,11 @@ import java.util.Optional;
 @Transactional
 public class CocktailService {
 
-    /**
-     * Inietta automaticamente il repository
-     * Spring crea l'istanza e la passa qui
-     */
     @Autowired
     private CocktailRepository cocktailRepository;
+
+    @Autowired
+    private IngredientService ingredientService;
 
     // ========================================
     // OPERAZIONI DI LETTURA
@@ -110,58 +112,96 @@ public class CocktailService {
     // ========================================
 
     /**
-     * Crea un nuovo cocktail.
+     * Crea un nuovo cocktail con ingredienti auto-creati se necessario.
      * 
-     * @param cocktail Il cocktail da creare (senza ID)
-     * @return Il cocktail creato (con ID generato)
+     * @param request Il DTO con i dati del cocktail e gli ingredienti
+     * @return Il cocktail creato (con ID generato e relazioni)
      * @throws RuntimeException se esiste già un cocktail con lo stesso nome
      */
-    public Cocktail createCocktail(Cocktail cocktail) {
+    public Cocktail createCocktail(CocktailRequest request) {
         // Validazione: controlla se esiste già
-        if (cocktailRepository.existsByName(cocktail.getName())) {
-            throw new RuntimeException("Esiste già un cocktail con nome: " + cocktail.getName());
+        if (cocktailRepository.existsByName(request.getName())) {
+            throw new RuntimeException("Esiste già un cocktail con nome: " + request.getName());
         }
         
-        // Salva nel database
+        // Crea l'entità cocktail
+        Cocktail cocktail = new Cocktail();
+        cocktail.setName(request.getName());
+        cocktail.setDescription(request.getDescription());
+        cocktail.setCategory(request.getCategory());
+        cocktail.setGlassType(request.getGlassType());
+        cocktail.setPreparationMethod(request.getPreparationMethod());
+        cocktail.setImageUrl(request.getImageUrl());
+        cocktail.setAlcoholic(request.getAlcoholic());
+        
+        // Gestione ingredienti: auto-crea se non esistono
+        if (request.getIngredients() != null) {
+            for (IngredientRequest ingReq : request.getIngredients()) {
+                // findOrCreateIngredient cerca l'ingrediente, se non esiste lo crea
+                Ingredient ingredient = ingredientService.findOrCreateIngredient(
+                    ingReq.getName(), 
+                    ingReq.getCategory(), 
+                    ingReq.getUnit()
+                );
+                
+                // Aggiungi la relazione cocktail-ingrediente con quantità
+                cocktail.addIngredient(ingredient, ingReq.getQuantity());
+            }
+        }
+        
+        // Salva nel database (cascade salva anche le relazioni CocktailIngredient)
         return cocktailRepository.save(cocktail);
     }
 
     /**
-     * Aggiorna un cocktail esistente.
+     * Aggiorna un cocktail esistente con gestione ingredienti.
      * 
      * @param id ID del cocktail da aggiornare
-     * @param cocktailDetails Nuovi dettagli del cocktail
+     * @param request Nuovi dettagli del cocktail
      * @return Il cocktail aggiornato
      * @throws RuntimeException se il cocktail non esiste
      */
-    public Cocktail updateCocktail(Long id, Cocktail cocktailDetails) {
+    public Cocktail updateCocktail(Long id, CocktailRequest request) {
         // Trova il cocktail esistente
         Cocktail existingCocktail = getCocktailById(id);
         
         // Aggiorna i campi (solo se non null)
-        if (cocktailDetails.getName() != null) {
-            existingCocktail.setName(cocktailDetails.getName());
+        if (request.getName() != null) {
+            existingCocktail.setName(request.getName());
         }
-        if (cocktailDetails.getDescription() != null) {
-            existingCocktail.setDescription(cocktailDetails.getDescription());
+        if (request.getDescription() != null) {
+            existingCocktail.setDescription(request.getDescription());
         }
-        if (cocktailDetails.getIngredients() != null) {
-            existingCocktail.setIngredients(cocktailDetails.getIngredients());
+        if (request.getCategory() != null) {
+            existingCocktail.setCategory(request.getCategory());
         }
-        if (cocktailDetails.getCategory() != null) {
-            existingCocktail.setCategory(cocktailDetails.getCategory());
+        if (request.getGlassType() != null) {
+            existingCocktail.setGlassType(request.getGlassType());
         }
-        if (cocktailDetails.getGlassType() != null) {
-            existingCocktail.setGlassType(cocktailDetails.getGlassType());
+        if (request.getPreparationMethod() != null) {
+            existingCocktail.setPreparationMethod(request.getPreparationMethod());
         }
-        if (cocktailDetails.getPreparationMethod() != null) {
-            existingCocktail.setPreparationMethod(cocktailDetails.getPreparationMethod());
+        if (request.getImageUrl() != null) {
+            existingCocktail.setImageUrl(request.getImageUrl());
         }
-        if (cocktailDetails.getImageUrl() != null) {
-            existingCocktail.setImageUrl(cocktailDetails.getImageUrl());
+        if (request.getAlcoholic() != null) {
+            existingCocktail.setAlcoholic(request.getAlcoholic());
         }
-        if (cocktailDetails.getAlcoholic() != null) {
-            existingCocktail.setAlcoholic(cocktailDetails.getAlcoholic());
+        
+        // Aggiorna ingredienti: rimuovi vecchi e aggiungi nuovi
+        if (request.getIngredients() != null) {
+            // Rimuovi tutte le relazioni esistenti
+            existingCocktail.clearIngredients();
+            
+            // Aggiungi i nuovi ingredienti con auto-creazione
+            for (IngredientRequest ingReq : request.getIngredients()) {
+                Ingredient ingredient = ingredientService.findOrCreateIngredient(
+                    ingReq.getName(), 
+                    ingReq.getCategory(), 
+                    ingReq.getUnit()
+                );
+                existingCocktail.addIngredient(ingredient, ingReq.getQuantity());
+            }
         }
         
         // Salva le modifiche (l'@PreUpdate aggiornerà updated_at automaticamente)
