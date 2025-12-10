@@ -12,12 +12,14 @@ API REST per la gestione di cocktail con autenticazione OAuth2/JWT tramite Keycl
 - [Autenticazione](#autenticazione)
 - [Database](#database)
 - [Configurazione](#configurazione)
+- [Aggiornamenti Recenti](#aggiornamenti-recenti)
 
 ## Tecnologie
 
 - **Java 17** - Linguaggio di programmazione
 - **Spring Boot 3.2.0** - Framework applicativo
 - **Spring Security** - OAuth2 Resource Server con JWT
+- **Spring Data JPA** - ORM e gestione database
 - **Keycloak 23.0** - Identity and Access Management
 - **MySQL 8.0** - Database relazionale
 - **Docker & Docker Compose** - Containerizzazione
@@ -65,33 +67,25 @@ Tutti i container devono essere nello stato `running/healthy`.
 Apri il browser e vai su:
 
 ```
-http://localhost:8081/swagger-ui/index.html
+http://localhost:8081
 ```
+
+L'applicazione reindirizza automaticamente a Swagger UI.
 
 ### Autenticazione con Swagger
 
-#### Metodo 1: Endpoint `/api/auth/login` (Consigliato)
-
-1. In Swagger, vai alla sezione **Authentication**
-2. Apri `POST /api/auth/login`
+1. In Swagger, vai alla sezione **auth-controller**
+2. Apri `GET /api/auth/login`
 3. Clicca **"Try it out"**
 4. Inserisci le credenziali:
-   - **username**: `simone@test.com`
+   - **username**: `simone`
    - **password**: `123456`
-   - **clientId**: `cocktail-client`
 5. Clicca **"Execute"**
-6. Copia il valore di `access_token` dalla risposta
-7. Clicca sul lucchetto **"Bearer Authentication"** in alto
+6. Copia il valore di `token` dalla risposta
+7. Clicca sul pulsante **"Authorize"** 🔓 in alto a destra
 8. Incolla il token nel campo "Value"
-9. Clicca **"Authorize"**
-
-#### Metodo 2: OAuth2 Password Flow
-
-1. Clicca sul lucchetto **"OAuth2"** in alto
-2. Inserisci:
-   - **username**: `simone@test.com`
-   - **password**: `123456`
-3. Clicca **"Authorize"**
+9. Clicca **"Authorize"** e poi **"Close"**
+10. Ora tutte le chiamate useranno automaticamente il token!
 
 ### Test degli endpoint
 
@@ -99,33 +93,144 @@ Dopo l'autenticazione, puoi testare tutti gli endpoint direttamente da Swagger.
 
 ## API Endpoints
 
-### Pubblici (nessuna autenticazione richiesta)
+### 🌐 Pubblici (nessuna autenticazione richiesta)
 
 | Metodo | Endpoint | Descrizione |
 |--------|----------|-------------|
 | GET | `/api/public/hello` | Messaggio di benvenuto |
 | GET | `/api/public/cocktails` | Lista di tutti i cocktail |
-| POST | `/api/auth/login` | Ottieni token JWT |
+| GET | `/api/ingredients` | Lista di tutti gli ingredienti |
+| GET | `/api/ingredients/search?name={query}` | Cerca ingredienti per nome |
+| GET | `/api/ingredients/{id}` | Dettaglio ingrediente |
+| GET | `/api/auth/login` | Ottieni token JWT |
 | POST | `/api/auth/refresh` | Rinnova token con refresh_token |
 
-### USER (richiede ruolo USER o ADMIN)
+### 👤 USER (richiede ruolo USER o ADMIN)
+
+#### Cocktails
 
 | Metodo | Endpoint | Descrizione |
 |--------|----------|-------------|
+| GET | `/api/user/cocktails` | Lista completa di tutti i cocktail |
 | GET | `/api/user/cocktails/{id}` | Dettagli cocktail per ID |
-| GET | `/api/user/cocktails/search` | Cerca cocktail per nome |
+| GET | `/api/user/cocktails/search?name={query}` | Cerca cocktail per nome |
 | GET | `/api/user/cocktails/category/{category}` | Filtra per categoria |
-| GET | `/api/user/cocktails/alcoholic/{alcoholic}` | Filtra per alcolico/analcolico |
-| GET | `/api/user/profile` | Informazioni profilo utente |
-| GET | `/api/auth/token-info` | Informazioni token corrente |
+| GET | `/api/user/cocktails/alcoholic?value=true` | Filtra per alcolico/analcolico |
+| POST | `/api/cocktails` | **Crea nuovo cocktail** (con auto-creazione ingredienti) |
+| PUT | `/api/cocktails/{id}` | **Aggiorna cocktail esistente** |
 
-### ADMIN (richiede ruolo ADMIN)
+#### Ingredienti
 
 | Metodo | Endpoint | Descrizione |
 |--------|----------|-------------|
-| POST | `/api/admin/cocktails` | Crea nuovo cocktail |
-| PUT | `/api/admin/cocktails/{id}` | Aggiorna cocktail esistente |
-| DELETE | `/api/admin/cocktails/{id}` | Elimina cocktail |
+| POST | `/api/ingredients` | **Crea nuovo ingrediente** |
+| PUT | `/api/ingredients/{id}` | **Aggiorna ingrediente** |
+
+#### Preferiti
+
+| Metodo | Endpoint | Descrizione |
+|--------|----------|-------------|
+| GET | `/api/favorites` | **Ottieni i tuoi preferiti** |
+| GET | `/api/favorites/check/{cocktailId}` | Verifica se è preferito |
+| POST | `/api/favorites/{cocktailId}` | **Aggiungi ai preferiti** |
+| DELETE | `/api/favorites/{cocktailId}` | Rimuovi dai preferiti |
+| PUT | `/api/favorites/toggle/{cocktailId}` | Toggle (aggiungi/rimuovi) |
+| DELETE | `/api/favorites` | Rimuovi tutti i preferiti |
+
+#### Profilo
+
+| Metodo | Endpoint | Descrizione |
+|--------|----------|-------------|
+| GET | `/api/user/profile` | Informazioni profilo utente |
+
+### 👑 ADMIN (richiede ruolo ADMIN)
+
+| Metodo | Endpoint | Descrizione |
+|--------|----------|-------------|
+| DELETE | `/api/admin/cocktails/{id}` | **Elimina cocktail** |
+| DELETE | `/api/ingredients/{id}` | **Elimina ingrediente** |
+| GET | `/api/admin/stats` | Statistiche amministrative |
+
+## Database Schema
+
+Il database utilizza un **design normalizzato** con 4 tabelle:
+
+### 📊 Tabelle
+
+#### 1. `ingredient` (Ingredienti)
+```sql
+CREATE TABLE ingredient (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) UNIQUE NOT NULL,
+    category VARCHAR(50),
+    unit VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+- **28 ingredienti precaricati** (rum, vodka, gin, limone, zucchero, etc.)
+- Categorie: spirit, liqueur, juice, fruit, herb, syrup, other
+- Unità: ml, foglie, fette, grammi, etc.
+
+#### 2. `cocktail` (Cocktail)
+```sql
+CREATE TABLE cocktail (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    category VARCHAR(50),
+    alcoholic BOOLEAN,
+    glass VARCHAR(50),
+    instructions TEXT,
+    image_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+- Contiene i dati principali del cocktail
+- **Non** contiene più il campo `ingredients` (ora normalizzato)
+
+#### 3. `cocktail_ingredient` (Relazione Many-to-Many)
+```sql
+CREATE TABLE cocktail_ingredient (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    cocktail_id BIGINT NOT NULL,
+    ingredient_id BIGINT NOT NULL,
+    quantity VARCHAR(50),
+    FOREIGN KEY (cocktail_id) REFERENCES cocktail(id) ON DELETE CASCADE,
+    FOREIGN KEY (ingredient_id) REFERENCES ingredient(id) ON DELETE CASCADE
+);
+```
+- Join table che collega cocktail e ingredienti
+- Campo `quantity` per specificare dosi (es. "50ml", "10 foglie")
+
+#### 4. `favorite` (Preferiti Utente)
+```sql
+CREATE TABLE favorite (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id VARCHAR(255) NOT NULL,
+    cocktail_id BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_user_cocktail (user_id, cocktail_id),
+    FOREIGN KEY (cocktail_id) REFERENCES cocktail(id) ON DELETE CASCADE
+);
+```
+- `user_id` contiene il **subject del JWT** (non FK su Keycloak)
+- Un utente può avere un cocktail preferito **solo una volta**
+
+### 🔗 Relazioni
+
+```
+ingredient (1) ←→ (N) cocktail_ingredient (N) ←→ (1) cocktail
+                                                         ↑
+                                                         |
+                                              (N) ← favorite → (1) user (JWT)
+```
+
+### 🌱 Dati Iniziali
+
+Cocktail precaricati:
+- **Mojito**: Rum Bianco (50ml), Lime (15ml), Zucchero (10g), Menta (10 foglie)
+- **Negroni**: Gin (30ml), Campari (30ml), Vermouth Rosso (30ml)
+- **Margarita**: Tequila (50ml), Triple Sec (30ml), Lime (20ml)
 
 ## Autenticazione
 
@@ -145,12 +250,29 @@ Username: admin
 Password: admin
 ```
 
-Realm: **cocktail-realm**
+Realm: **cocktail_realm**
+
+### Configurazione Keycloak
+
+1. **Crea il Realm**:
+   - Nome: `cocktail_realm` (con underscore, non trattino)
+
+2. **Crea il Client**:
+   - Client ID: `cocktail-client`
+   - Client Protocol: `openid-connect`
+   - Access Type: `public`
+   - Direct Access Grants Enabled: `ON`
+   - Valid Redirect URIs: `http://localhost:8081/*`
+
+3. **Crea l'Utente**:
+   - Username/Email: `simone@test.com`
+   - Password: `123456` (Temporary: OFF)
+   - Role Mappings: aggiungi ruolo `USER`
 
 ### Ottenere un token via PowerShell
 
 ```powershell
-$response = Invoke-RestMethod -Uri "http://localhost:8080/realms/cocktail-realm/protocol/openid-connect/token" -Method POST -Body @{
+$response = Invoke-RestMethod -Uri "http://localhost:8080/realms/cocktail_realm/protocol/openid-connect/token" -Method POST -Body @{
     grant_type = "password"
     client_id = "cocktail-client"
     username = "simone@test.com"
@@ -171,38 +293,67 @@ $headers = @{
 Invoke-RestMethod -Uri "http://localhost:8081/api/user/cocktails/1" -Headers $headers
 ```
 
-## Database
+## Funzionalità Chiave
 
-### Struttura
+### 🎯 Auto-creazione Ingredienti
+
+Quando crei o modifichi un cocktail, **non serve creare manualmente gli ingredienti**:
+
+```json
+POST /api/cocktails
+{
+  "name": "Mojito",
+  "ingredients": [
+    {"name": "Rum Bianco", "quantity": "50ml"},
+    {"name": "Menta", "quantity": "10 foglie"},
+    {"name": "Nuovo Ingrediente", "quantity": "20g"}
+  ]
+}
+```
+
+Il sistema:
+1. Cerca ogni ingrediente nel database (case-insensitive)
+2. Se esiste, lo usa
+3. Se **non** esiste, lo crea automaticamente con categoria "other"
+
+### ⭐ Sistema Preferiti
+
+Ogni utente ha la propria lista di preferiti:
+
+```bash
+GET /api/favorites → Lista dei tuoi cocktail preferiti
+POST /api/favorites/5 → Aggiungi cocktail ID 5 ai preferiti
+PUT /api/favorites/toggle/5 → Toggle (se già preferito lo rimuove, altrimenti lo aggiunge)
+GET /api/favorites/check/5 → Controlla se il cocktail 5 è nei tuoi preferiti
+```
+
+- I preferiti sono legati all'utente tramite JWT (campo `user_id`)
+- Non ci sono Foreign Key su Keycloak (separazione dei database)
+
+### 🔒 Sistema Permessi
+
+| Azione | PUBLIC | USER | ADMIN |
+|--------|--------|------|-------|
+| Visualizzare cocktail | ✅ (base) | ✅ (completo) | ✅ |
+| Creare cocktail | ❌ | ✅ | ✅ |
+| Modificare cocktail | ❌ | ✅ | ✅ |
+| Eliminare cocktail | ❌ | ❌ | ✅ |
+| Creare ingredienti | ❌ | ✅ (auto) | ✅ |
+| Eliminare ingredienti | ❌ | ❌ | ✅ |
+| Gestire preferiti | ❌ | ✅ (propri) | ✅ |
+
+## Database
 
 Il progetto utilizza due database MySQL separati:
 
-#### 1. Database `keycloak`
+### 1. Database `keycloak`
 - Gestito automaticamente da Keycloak
 - Contiene utenti, ruoli, client, sessioni
 - 91 tabelle generate da Keycloak
 
-#### 2. Database `cocktails`
-- Database applicativo
-- Tabella principale: `cocktail`
-
-### Schema tabella `cocktail`
-
-```sql
-CREATE TABLE cocktail (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    ingredients TEXT,
-    category VARCHAR(50),
-    glass_type VARCHAR(50),
-    preparation_method TEXT,
-    image_url VARCHAR(255),
-    alcoholic BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-```
+### 2. Database `cocktails`
+- Database applicativo con **4 tabelle normalizzate**
+- Vedi sezione "Database Schema" per dettagli completi
 
 ### Accesso MySQL
 
@@ -213,16 +364,16 @@ docker exec -it cocktail-mysql mysql -uroot -prootpassword
 ```sql
 USE cocktails;
 SELECT * FROM cocktail;
+SELECT * FROM ingredient;
+SELECT * FROM cocktail_ingredient;
+SELECT * FROM favorite;
 ```
 
 ### Dati di esempio
 
-Il database viene popolato automaticamente con 5 cocktail:
-- Mojito
-- Margarita
-- Negroni
-- Aperol Spritz
-- Manhattan
+Il database viene popolato automaticamente con:
+- **28 ingredienti** (rum, vodka, gin, limone, zucchero, menta, etc.)
+- **3 cocktail** (Mojito, Margarita, Negroni) con ingredienti completi
 
 ## Configurazione
 
@@ -269,9 +420,59 @@ docker-compose down
 docker-compose up -d
 ```
 
-### Errore 401 "Bearer token is malformed"
+### Realm does not exist / Client not found
 
-Il problema è stato risolto rimuovendo la validazione `issuer-uri` in `application.yml`. La configurazione attuale valida solo la firma JWT tramite `jwk-set-uri`.
+Problema: Mismatch tra nome realm in `application.yml` e Keycloak.
+
+**Soluzione**:
+1. Assicurati che in `application.yml` ci sia `cocktail_realm` (con underscore)
+2. In Keycloak crea realm con nome esatto: `cocktail_realm`
+3. Crea client `cocktail-client` con Direct Access Grants abilitato
+
+```yaml
+# application.yml - Verifica questi 3 punti
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/cocktail_realm  # ← underscore
+          jwk-set-uri: http://localhost:8080/realms/cocktail_realm/protocol/openid-connect/certs  # ← underscore
+```
+
+### GET /api/ingredients ritorna array vuoto
+
+Problema: Tabella `ingredient` non esiste dopo reset database.
+
+**Soluzione**:
+```powershell
+# Reset completo dei volumi Docker
+docker-compose down -v
+docker-compose up -d
+```
+
+Questo ricreerà il database con tutte le tabelle e i 28 ingredienti precaricati.
+
+### GET /api/favorites ritorna errore 500
+
+Problema: Hibernate LAZY proxy non può essere serializzato da Jackson.
+
+**Soluzione**: Cambiato `FetchType.LAZY` in `FetchType.EAGER` nell'entità `Favorite`:
+
+```java
+@ManyToOne(fetch = FetchType.EAGER)  // ← EAGER invece di LAZY
+@JoinColumn(name = "cocktail_id")
+private Cocktail cocktail;
+```
+
+### JSON mostra oggetti Java invece di dati
+
+Problema: Cicli di serializzazione o metodi getter obsoleti.
+
+**Soluzione applicata**:
+- Aggiunto `@JsonIgnore` su `Ingredient.cocktailIngredients`
+- Aggiunto `@JsonBackReference` su `CocktailIngredient.cocktail`
+- Rimossi metodi `getIngredients()` e `setIngredients()` obsoleti da `Cocktail.java`
 
 ### Keycloak non risponde
 
@@ -286,7 +487,7 @@ docker-compose restart keycloak
 ### Rebuild completo
 
 ```powershell
-# Ferma tutto
+# Ferma tutto e rimuovi volumi
 docker-compose down -v
 
 # Rimuovi le immagini
@@ -303,7 +504,8 @@ docker-compose up --build -d
 1. Modifica i file in `src/main/java`
 2. Rebuild del container:
    ```powershell
-   docker-compose up --build -d cocktail-app
+   docker-compose build cocktail-app
+   docker-compose up -d --force-recreate cocktail-app
    ```
 
 ### Hot reload (sviluppo locale)
@@ -320,11 +522,56 @@ mvn spring-boot:run
 
 1. Vai su http://localhost:8080/admin
 2. Login con admin/admin
-3. Seleziona realm **cocktail-realm**
+3. Seleziona realm **cocktail_realm** (con underscore)
 4. Menu **Users** → **Add user**
 5. Compila i campi e salva
-6. Tab **Credentials** → Imposta password
+6. Tab **Credentials** → Imposta password (Temporary: OFF)
 7. Tab **Role mappings** → Assegna ruoli USER/ADMIN
+
+## Changelog (Oggi)
+
+### ✅ Database Normalizzato
+- Creata tabella `ingredient` (28 ingredienti precaricati)
+- Creata tabella `cocktail_ingredient` (join con campo `quantity`)
+- Creata tabella `favorite` (user_id da JWT)
+- Rimosso campo `ingredients` da tabella `cocktail`
+
+### ✅ Nuove Entità JPA
+- `Ingredient.java` con relazione `@OneToMany` a `CocktailIngredient`
+- `CocktailIngredient.java` join entity con `@JsonBackReference`
+- `Favorite.java` con `FetchType.EAGER` per evitare proxy Hibernate
+- `Cocktail.java` aggiornato con `Set<CocktailIngredient>`
+
+### ✅ Nuovi Repository
+- `IngredientRepository` con query `findByNameIgnoreCase`, `existsByNameIgnoreCase`
+- `CocktailIngredientRepository` con `findByCocktailId`, `deleteByCocktailId`
+- `FavoriteRepository` con `findByUserId`, `existsByUserIdAndCocktailId`
+
+### ✅ Nuovi Service
+- `IngredientService` con **auto-creazione**: `findOrCreateIngredient(name, category, unit)`
+- `FavoriteService` completo (add, remove, toggle, check)
+- `CocktailService` modificato per accettare `CocktailRequest` DTO
+
+### ✅ Nuovi Controller
+- `IngredientController` (GET pubblico, POST/PUT USER/ADMIN, DELETE ADMIN)
+- `FavoriteController` (tutti i metodi per USER/ADMIN)
+- `CocktailController` modificato: POST/PUT per USER/ADMIN (prima solo ADMIN)
+
+### ✅ Login Semplificato
+- `AuthController` usa `@RequestParam` invece di `@RequestBody`
+- Risposta con `LoginResponse` DTO (token, expiresIn, tokenType, refreshToken)
+- Endpoint: `GET /api/auth/login?username=X&password=Y`
+
+### ✅ Fix Critici
+- Realm rinominato `cocktail-realm` → `cocktail_realm` (underscore)
+- JSON serialization: aggiunti `@JsonIgnore`, `@JsonBackReference`, `@JsonManagedReference`
+- Rimossi metodi `getIngredients()`/`setIngredients()` obsoleti
+- `Favorite.cocktail` cambiato da LAZY a EAGER per serializzazione
+
+### ✅ Sistema Permessi
+- **USER** può creare/modificare cocktail e ingredienti
+- **ADMIN** può eliminare cocktail e ingredienti
+- Auto-creazione ingredienti durante creazione cocktail
 
 ## Licenza
 
