@@ -1,7 +1,10 @@
 package com.cocktail.cocktaillist.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Entità JPA che mappa la tabella "cocktail" del database.
@@ -31,11 +34,14 @@ public class Cocktail {
     private String description;
 
     /**
-     * Lista ingredienti (salvata come testo)
-     * Es: "50ml Rum Bianco, 1 Lime, 10 foglie Menta..."
+     * Relazione One-to-Many con CocktailIngredient
+     * Un cocktail ha molti ingredienti (attraverso la tabella di join)
+     * cascade = ALL: quando salvi/elimini il cocktail, gestisci anche gli ingredienti
+     * orphanRemoval = true: se rimuovi un ingrediente dalla lista, viene eliminato dal DB
      */
-    @Column(name = "ingredients", columnDefinition = "TEXT")
-    private String ingredients;
+    @OneToMany(mappedBy = "cocktail", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JsonManagedReference
+    private Set<CocktailIngredient> cocktailIngredients = new HashSet<>();
 
     /**
      * Categoria del cocktail (Rum, Gin, Vodka, Tequila, ecc.)
@@ -113,23 +119,49 @@ public class Cocktail {
     /**
      * Costruttore con campi principali
      */
-    public Cocktail(String name, String description, String ingredients, String category) {
+    public Cocktail(String name, String description, String category) {
         this.name = name;
         this.description = description;
-        this.ingredients = ingredients;
         this.category = category;
     }
 
     // ========================================
-    // GETTERS E SETTERS
+    // METODI HELPER PER GESTIRE INGREDIENTI
     // ========================================
 
-    public Long getId() {
-        return id;
+    /**
+     * Aggiunge un ingrediente al cocktail con la quantità specificata
+     * Gestisce automaticamente la relazione bidirezionale
+     */
+    public void addIngredient(Ingredient ingredient, String quantity) {
+        CocktailIngredient cocktailIngredient = new CocktailIngredient(this, ingredient, quantity);
+        cocktailIngredients.add(cocktailIngredient);
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    /**
+     * Rimuove un ingrediente dal cocktail
+     */
+    public void removeIngredient(CocktailIngredient cocktailIngredient) {
+        cocktailIngredients.remove(cocktailIngredient);
+        cocktailIngredient.setCocktail(null);
+    }
+
+    /**
+     * Rimuove tutti gli ingredienti
+     */
+    public void clearIngredients() {
+        //implementare
+    }
+    public Set<CocktailIngredient> getCocktailIngredients() {
+        return cocktailIngredients;
+    }
+
+    public void setCocktailIngredients(Set<CocktailIngredient> cocktailIngredients) {
+        this.cocktailIngredients = cocktailIngredients;
+    }
+
+    public String getCategory() {
+        return category;
     }
 
     public String getName() {
@@ -146,18 +178,6 @@ public class Cocktail {
 
     public void setDescription(String description) {
         this.description = description;
-    }
-
-    public String getIngredients() {
-        return ingredients;
-    }
-
-    public void setIngredients(String ingredients) {
-        this.ingredients = ingredients;
-    }
-
-    public String getCategory() {
-        return category;
     }
 
     public void setCategory(String category) {

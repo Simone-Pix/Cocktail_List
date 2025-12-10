@@ -24,10 +24,10 @@ spring:
       resourceserver:
         jwt:
           # Usa solo jwk-set-uri senza issuer-uri per accettare token da localhost E keycloak
-          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8080}/realms/cocktail-realm/protocol/openid-connect/certs
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8080}/realms/cocktail_realm/protocol/openid-connect/certs
 
 keycloak:
-  realm: cocktail-realm
+  realm: cocktail_realm
   auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8080}
   resource: cocktail-client
   public-client: true
@@ -61,7 +61,7 @@ spring:
       resourceserver:
         jwt:
           # Usa solo jwk-set-uri per validare la firma, accetta token da localhost (browser) e keycloak (Docker)
-          jwk-set-uri: http://keycloak:8080/realms/cocktail-realm/protocol/openid-connect/certs
+          jwk-set-uri: http://keycloak:8080/realms/cocktail_realm/protocol/openid-connect/certs
 
 keycloak:
   auth-server-url: http://keycloak:8080
