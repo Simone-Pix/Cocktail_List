@@ -1,5 +1,6 @@
 package com.cocktail.cocktaillist.controller;
 
+import com.cocktail.cocktaillist.dto.CocktailRequest;
 import com.cocktail.cocktaillist.model.Cocktail;
 import com.cocktail.cocktaillist.service.CocktailService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -162,18 +163,18 @@ public class CocktailController {
     }
 
     /**
-     * Crea un nuovo cocktail.
-     * POST http://localhost:8081/api/admin/cocktails
+     * Crea un nuovo cocktail (USER e ADMIN).
+     * POST http://localhost:8081/api/cocktails
      * Header: Authorization: Bearer <token>
-     * Body: JSON del cocktail
+     * Body: JSON con CocktailRequest
      * 
-     * @param cocktail Dati del cocktail da creare
+     * @param request Dati del cocktail da creare con lista ingredienti
      */
-    @PostMapping("/admin/cocktails")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Cocktail> createCocktail(@RequestBody Cocktail cocktail) {
+    @PostMapping("/cocktails")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<Cocktail> createCocktail(@RequestBody CocktailRequest request) {
         try {
-            Cocktail created = cocktailService.createCocktail(cocktail);
+            Cocktail created = cocktailService.createCocktail(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().build();
@@ -181,19 +182,19 @@ public class CocktailController {
     }
 
     /**
-     * Aggiorna un cocktail esistente.
-     * PUT http://localhost:8081/api/admin/cocktails/{id}
+     * Aggiorna un cocktail esistente (USER e ADMIN).
+     * PUT http://localhost:8081/api/cocktails/{id}
      * 
      * @param id ID del cocktail da aggiornare
-     * @param cocktailDetails Nuovi dati
+     * @param request Nuovi dati con CocktailRequest
      */
-    @PutMapping("/admin/cocktails/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/cocktails/{id}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<Cocktail> updateCocktail(
             @PathVariable Long id,
-            @RequestBody Cocktail cocktailDetails) {
+            @RequestBody CocktailRequest request) {
         try {
-            Cocktail updated = cocktailService.updateCocktail(id, cocktailDetails);
+            Cocktail updated = cocktailService.updateCocktail(id, request);
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
@@ -201,7 +202,7 @@ public class CocktailController {
     }
 
     /**
-     * Elimina un cocktail.
+     * Elimina un cocktail (solo ADMIN).
      * DELETE http://localhost:8081/api/admin/cocktails/{id}
      * 
      * @param id ID del cocktail da eliminare

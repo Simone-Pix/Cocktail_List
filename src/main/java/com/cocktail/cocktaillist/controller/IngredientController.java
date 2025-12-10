@@ -1,0 +1,142 @@
+package com.cocktail.cocktaillist.controller;
+
+import com.cocktail.cocktaillist.model.Ingredient;
+import com.cocktail.cocktaillist.service.IngredientService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Controller per la gestione degli ingredienti.
+ * 
+ * Funzionalità:
+ * - Visualizzare tutti gli ingredienti
+ * - Cercare ingredienti per nome (autocomplete)
+ * - Creare nuovi ingredienti
+ * - Modificare ingredienti esistenti
+ * - Eliminare ingredienti (se non usati in cocktail)
+ */
+@RestController
+@RequestMapping("/api/ingredients")
+@CrossOrigin(origins = "http://localhost:3000")
+public class IngredientController {
+
+    @Autowired
+    private IngredientService ingredientService;
+
+    /**
+     * Lista pubblica di tutti gli ingredienti.
+     * GET http://localhost:8081/api/ingredients
+     * 
+     * Utile per dropdown e autocomplete
+     */
+    @GetMapping
+    public ResponseEntity<List<Ingredient>> getAllIngredients() {
+        List<Ingredient> ingredients = ingredientService.getAllIngredients();
+        return ResponseEntity.ok(ingredients);
+    }
+
+    /**
+     * Cerca ingredienti per nome (autocomplete).
+     * GET http://localhost:8081/api/ingredients/search?name=rum
+     * 
+     * @param name Parte del nome da cercare
+     * @return Lista di ingredienti che matchano
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<Ingredient>> searchIngredients(@RequestParam String name) {
+        List<Ingredient> results = ingredientService.searchByName(name);
+        return ResponseEntity.ok(results);
+    }
+
+    /**
+     * Dettaglio di un singolo ingrediente.
+     * GET http://localhost:8081/api/ingredients/{id}
+     * 
+     * @param id ID dell'ingrediente
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<Ingredient> getIngredientById(@PathVariable Long id) {
+        try {
+            Ingredient ingredient = ingredientService.getIngredientById(id);
+            return ResponseEntity.ok(ingredient);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
+     * Crea un nuovo ingrediente (USER e ADMIN).
+     * POST http://localhost:8081/api/ingredients
+     * Header: Authorization: Bearer <token>
+     * Body: JSON dell'ingrediente
+     * 
+     * @param ingredient Dati del nuovo ingrediente
+     */
+    @PostMapping
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<?> createIngredient(@RequestBody Ingredient ingredient) {
+        try {
+            Ingredient created = ingredientService.createIngredient(ingredient);
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+
+    /**
+     * Aggiorna un ingrediente esistente (USER e ADMIN).
+     * PUT http://localhost:8081/api/ingredients/{id}
+     * 
+     * @param id ID dell'ingrediente da aggiornare
+     * @param ingredientDetails Nuovi dati
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<?> updateIngredient(
+            @PathVariable Long id,
+            @RequestBody Ingredient ingredientDetails) {
+        try {
+            Ingredient updated = ingredientService.updateIngredient(id, ingredientDetails);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
+     * Elimina un ingrediente (solo ADMIN).
+     * DELETE http://localhost:8081/api/ingredients/{id}
+     * 
+     * Nota: fallisce se l'ingrediente è usato in cocktail esistenti
+     * 
+     * @param id ID dell'ingrediente da eliminare
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> deleteIngredient(@PathVariable Long id) {
+        try {
+            ingredientService.deleteIngredient(id);
+            
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Ingrediente eliminato con successo");
+            response.put("id", id.toString());
+            
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+}
