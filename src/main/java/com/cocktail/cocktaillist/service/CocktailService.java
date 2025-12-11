@@ -6,6 +6,10 @@ import com.cocktail.cocktaillist.model.Cocktail;
 import com.cocktail.cocktaillist.model.Ingredient;
 import com.cocktail.cocktaillist.repository.CocktailRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -105,6 +109,64 @@ public class CocktailService {
      */
     public long countCocktails() {
         return cocktailRepository.count();
+    }
+
+    /**
+     * Ottiene tutti gli ID dei cocktail ordinati in modo crescente.
+     * Utile per identificare gap negli ID dopo eliminazioni.
+     * 
+     * @return Lista di ID ordinati
+     */
+    public List<Long> getAllCocktailIds() {
+        return cocktailRepository.findAllIds();
+    }
+
+    // ========================================
+    // OPERAZIONI DI LETTURA PAGINATE
+    // ========================================
+
+    /**
+     * Ottiene tutti i cocktail con paginazione e ordinamento.
+     * 
+     * @param page Numero pagina (0-based)
+     * @param size Elementi per pagina
+     * @param sortBy Campo per ordinamento
+     * @param sortDir Direzione ordinamento ("asc" o "desc")
+     * @return Pagina di cocktail
+     */
+    public Page<Cocktail> getAllCocktailsPaginated(int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("asc") 
+            ? Sort.by(sortBy).ascending() 
+            : Sort.by(sortBy).descending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return cocktailRepository.findAll(pageable);
+    }
+
+    /**
+     * Cerca cocktail per categoria con paginazione.
+     * 
+     * @param category Categoria da cercare
+     * @param page Numero pagina
+     * @param size Elementi per pagina
+     * @return Pagina di cocktail della categoria
+     */
+    public Page<Cocktail> getCocktailsByCategoryPaginated(String category, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
+        return cocktailRepository.findByCategory(category, pageable);
+    }
+
+    /**
+     * Cerca cocktail per nome con paginazione.
+     * 
+     * @param name Parte del nome da cercare
+     * @param page Numero pagina
+     * @param size Elementi per pagina
+     * @return Pagina di cocktail che matchano
+     */
+    public Page<Cocktail> searchCocktailsByNamePaginated(String name, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
+        return cocktailRepository.findByNameContainingIgnoreCase(name, pageable);
     }
 
     // ========================================

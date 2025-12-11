@@ -1,7 +1,10 @@
 package com.cocktail.cocktaillist.repository;
 
 import com.cocktail.cocktaillist.model.Cocktail;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -40,6 +43,15 @@ public interface CocktailRepository extends JpaRepository<Cocktail, Long> {
     List<Cocktail> findByCategory(String category);
 
     /**
+     * Trova tutti i cocktail di una specifica categoria (con paginazione).
+     * 
+     * @param category La categoria da cercare
+     * @param pageable Parametri di paginazione
+     * @return Pagina di cocktail della categoria
+     */
+    Page<Cocktail> findByCategory(String category, Pageable pageable);
+
+    /**
      * Trova un cocktail per nome (case-sensitive).
      * Spring genera: SELECT * FROM cocktail WHERE name = ?
      * 
@@ -56,6 +68,15 @@ public interface CocktailRepository extends JpaRepository<Cocktail, Long> {
      * @return Lista di cocktail che matchano
      */
     List<Cocktail> findByNameContainingIgnoreCase(String name);
+
+    /**
+     * Trova cocktail il cui nome contiene una stringa (case-insensitive, paginato).
+     * 
+     * @param name Parte del nome da cercare
+     * @param pageable Parametri di paginazione
+     * @return Pagina di cocktail che matchano
+     */
+    Page<Cocktail> findByNameContainingIgnoreCase(String name, Pageable pageable);
 
     /**
      * Trova tutti i cocktail alcolici o analcolici.
@@ -85,6 +106,17 @@ public interface CocktailRepository extends JpaRepository<Cocktail, Long> {
      */
     boolean existsByName(String name);
 
+    /**
+     * Ottiene tutti gli ID dei cocktail ordinati in modo crescente.
+     * Utile per identificare gap negli ID dopo eliminazioni.
+     * 
+     * @return Lista di ID ordinati
+     */
+    @Query("SELECT c.id FROM Cocktail c ORDER BY c.id")
+    List<Long> findAllIds();
+
+
+    
     // ========================================
     // ESEMPI DI QUERY PERSONALIZZATE (opzionali)
     // ========================================
