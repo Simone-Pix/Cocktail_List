@@ -7,6 +7,7 @@ import com.cocktail.cocktaillist.service.CocktailService;
 import io.swagger.v3.oas.annotations.Operation;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,6 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,12 +53,21 @@ public class CocktailController {
     }
 
     /**
-     * Lista pubblica dei cocktail (solo nomi e categorie).
-     * GET http://localhost:8081/api/public/cocktails
+     * Lista pubblica dei cocktail paginata.
+     * GET http://localhost:8081/api/public/cocktails?page=0&size=10&sortBy=name&sortDir=asc
+     * 
+     * @param page Numero pagina (default 0)
+     * @param size Elementi per pagina (default 10)
+     * @param sortBy Campo per ordinamento (default "name")
+     * @param sortDir Direzione ordinamento: "asc" o "desc" (default "asc")
      */
     @GetMapping("/public/cocktails")
-    public List<Cocktail> getPublicCocktails() {
-        return cocktailService.getAllCocktails();
+    public Page<Cocktail> getPublicCocktails(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        return cocktailService.getAllCocktailsPaginated(page, size, sortBy, sortDir);
     }
 
     // ========================================
@@ -84,14 +95,23 @@ public class CocktailController {
     }
 
     /**
-     * Lista completa dei cocktail (tutti i dettagli).
-     * GET http://localhost:8081/api/user/cocktails
+     * Lista completa dei cocktail paginata (tutti i dettagli).
+     * GET http://localhost:8081/api/user/cocktails?page=0&size=10&sortBy=name&sortDir=asc
      * Header: Authorization: Bearer <token>
+     * 
+     * @param page Numero pagina (default 0)
+     * @param size Elementi per pagina (default 10)
+     * @param sortBy Campo per ordinamento (default "name")
+     * @param sortDir Direzione ordinamento: "asc" o "desc" (default "asc")
      */
     @GetMapping("/user/cocktails")
     @PreAuthorize("hasRole('USER')")
-    public List<Cocktail> getAllCocktails() {
-        return cocktailService.getAllCocktails();
+    public Page<Cocktail> getAllCocktails(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        return cocktailService.getAllCocktailsPaginated(page, size, sortBy, sortDir);
     }
 
     /**
@@ -111,28 +131,45 @@ public class CocktailController {
         }
     }
 
+
+
+
+
+
+
+
     /**
-     * Cerca cocktail per categoria.
-     * GET http://localhost:8081/api/user/cocktails/category/Rum
+     * Cerca cocktail per categoria (paginato).
+     * GET http://localhost:8081/api/user/cocktails/category/Rum?page=0&size=10
      * 
      * @param category Categoria da cercare
+     * @param page Numero pagina (default 0)
+     * @param size Elementi per pagina (default 10)
      */
     @GetMapping("/user/cocktails/category/{category}")
     @PreAuthorize("hasRole('USER')")
-    public List<Cocktail> getCocktailsByCategory(@PathVariable String category) {
-        return cocktailService.getCocktailsByCategory(category);
+    public Page<Cocktail> getCocktailsByCategory(
+            @PathVariable String category,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return cocktailService.getCocktailsByCategoryPaginated(category, page, size);
     }
 
     /**
-     * Cerca cocktail per nome (ricerca parziale).
-     * GET http://localhost:8081/api/user/cocktails/search?name=moj
+     * Cerca cocktail per nome (ricerca parziale, paginato).
+     * GET http://localhost:8081/api/user/cocktails/search?name=moj&page=0&size=10
      * 
      * @param name Parte del nome da cercare
+     * @param page Numero pagina (default 0)
+     * @param size Elementi per pagina (default 10)
      */
     @GetMapping("/user/cocktails/search")
     @PreAuthorize("hasRole('USER')")
-    public List<Cocktail> searchCocktails(@RequestParam String name) {
-        return cocktailService.searchCocktailsByName(name);
+    public Page<Cocktail> searchCocktails(
+            @RequestParam String name,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return cocktailService.searchCocktailsByNamePaginated(name, page, size);
     }
 
     /**
@@ -178,7 +215,9 @@ public class CocktailController {
     @Operation(
         summary = "Crea un nuovo cocktail",
         description = "Crea un nuovo cocktail con i dati forniti. Richiede autenticazione con ruolo USER o ADMIN."+
-                      "INSERIRE UN SOLO COCKTAIL PER VOLTA"
+                      "INSERIRE UN SOLO COCKTAIL PER VOLTA"+
+                      "Se viene inserito un ID di un Cocktail esistente,"+
+                      "verrà creato un nuovo cocktail con un nuovo ID automaticamente."
     )
     public ResponseEntity<Cocktail> createCocktail(@RequestBody CocktailRequest request) {
         try {
@@ -227,6 +266,44 @@ public class CocktailController {
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    /**
+     * Analizza gli ID dei cocktail per identificare gap e fornire statistiche.
+     * GET http://localhost:8081/api/admin/cocktails/gaps
+     * 
+     * Utile per vedere quali ID sono stati eliminati e quali sono disponibili.
+     * 
+     * @return JSON con ID esistenti, ID mancanti, totale e max ID
+     */
+    @GetMapping("/admin/cocktails/gaps")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "Analizza gli Id dei cocktail per identificare quanti ID dei Cocktail Rimangono",
+        description = "analizza gli iD e restituisce il numero di ID disponibili"
+                
+    )
+    public ResponseEntity<Map<String, Object>> getIdGaps() {
+        List<Long> allIds = cocktailService.getAllCocktailIds();
+        List<Long> missingIds = new ArrayList<>();
+        
+        if (!allIds.isEmpty()) {
+            long maxId = allIds.get(allIds.size() - 1);
+            for (long i = 1; i <= maxId; i++) {
+                if (!allIds.contains(i)) {
+                    missingIds.add(i);
+                }
+            }
+        }
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("existingIds", allIds);
+        result.put("missingIds", missingIds);
+        result.put("totalCocktails", allIds.size());
+        result.put("maxId", allIds.isEmpty() ? 0 : allIds.get(allIds.size() - 1));
+        result.put("nextAvailableId", allIds.isEmpty() ? 1 : allIds.get(allIds.size() - 1) + 1);
+        
+        return ResponseEntity.ok(result);
     }
 
     // ========================================

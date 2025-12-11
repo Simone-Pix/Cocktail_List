@@ -3,6 +3,7 @@ package com.cocktail.cocktaillist.controller;
 import com.cocktail.cocktaillist.model.Ingredient;
 import com.cocktail.cocktaillist.service.IngredientService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,27 +32,49 @@ public class IngredientController {
     private IngredientService ingredientService;
 
     /**
-     * Lista pubblica di tutti gli ingredienti.
-     * GET http://localhost:8081/api/ingredients
+     * Lista paginata di tutti gli ingredienti.
+     * GET http://localhost:8081/api/ingredients?page=0&size=10&sortBy=name&sortDir=asc
      * 
-     * Utile per dropdown e autocomplete
+     * @param page Numero pagina (default 0)
+     * @param size Elementi per pagina (default 10)
+     * @param sortBy Campo per ordinamento (default "name")
+     * @param sortDir Direzione ordinamento: "asc" o "desc" (default "asc")
      */
     @GetMapping
-    public ResponseEntity<List<Ingredient>> getAllIngredients() {
-        List<Ingredient> ingredients = ingredientService.getAllIngredients();
-        return ResponseEntity.ok(ingredients);
+    public ResponseEntity<Map<String, Object>> getAllIngredients(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        Page<Ingredient> ingredientsPage = ingredientService.getAllIngredientsPaginated(page, size, sortBy, sortDir);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("ingredients", ingredientsPage.getContent());
+        response.put("currentPage", ingredientsPage.getNumber());
+        response.put("pageSize", ingredientsPage.getSize());
+        response.put("totalIngredients", ingredientsPage.getTotalElements());
+        response.put("totalPages", ingredientsPage.getTotalPages());
+        response.put("isFirst", ingredientsPage.isFirst());
+        response.put("isLast", ingredientsPage.isLast());
+        
+        return ResponseEntity.ok(response);
     }
 
     /**
-     * Cerca ingredienti per nome (autocomplete).
-     * GET http://localhost:8081/api/ingredients/search?name=rum
+     * Cerca ingredienti per nome (autocomplete, paginato).
+     * GET http://localhost:8081/api/ingredients/search?name=rum&page=0&size=10
      * 
      * @param name Parte del nome da cercare
-     * @return Lista di ingredienti che matchano
+     * @param page Numero pagina (default 0)
+     * @param size Elementi per pagina (default 10)
+     * @return Pagina di ingredienti che matchano
      */
     @GetMapping("/search")
-    public ResponseEntity<List<Ingredient>> searchIngredients(@RequestParam String name) {
-        List<Ingredient> results = ingredientService.searchByName(name);
+    public ResponseEntity<Page<Ingredient>> searchIngredients(
+            @RequestParam String name,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Page<Ingredient> results = ingredientService.searchByNamePaginated(name, page, size);
         return ResponseEntity.ok(results);
     }
 
