@@ -152,6 +152,19 @@ public class Cocktail {
     public void clearIngredients() {
         //implementare
     }
+
+    // ========================================
+    // GETTERS E SETTERS
+    // ========================================
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public Set<CocktailIngredient> getCocktailIngredients() {
         return cocktailIngredients;
     }
