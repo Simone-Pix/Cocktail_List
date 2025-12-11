@@ -95,29 +95,29 @@ Dopo l'autenticazione, puoi testare tutti gli endpoint direttamente da Swagger.
 
 ### 🌐 Pubblici (nessuna autenticazione richiesta)
 
-| Metodo | Endpoint | Descrizione |
-|--------|----------|-------------|
-| GET | `/api/public/hello` | Messaggio di benvenuto |
-| GET | `/api/public/cocktails` | Lista di tutti i cocktail |
-| GET | `/api/ingredients` | Lista di tutti gli ingredienti |
-| GET | `/api/ingredients/search?name={query}` | Cerca ingredienti per nome |
-| GET | `/api/ingredients/{id}` | Dettaglio ingrediente |
-| GET | `/api/auth/login` | Ottieni token JWT |
-| POST | `/api/auth/refresh` | Rinnova token con refresh_token |
+| Metodo | Endpoint | Descrizione | Paginazione |
+|--------|----------|-------------|-------------|
+| GET | `/api/public/hello` | Messaggio di benvenuto | - |
+| GET | `/api/public/cocktails` | Lista di tutti i cocktail | ✅ `?page=0&size=10&sortBy=name&sortDir=asc` |
+| GET | `/api/ingredients` | Lista di tutti gli ingredienti | ✅ `?page=0&size=10&sortBy=name&sortDir=asc` |
+| GET | `/api/ingredients/search?name={query}` | Cerca ingredienti per nome | ✅ `&page=0&size=10` |
+| GET | `/api/ingredients/{id}` | Dettaglio ingrediente | - |
+| GET | `/api/auth/login` | Ottieni token JWT | - |
+| POST | `/api/auth/refresh` | Rinnova token con refresh_token | - |
 
 ### 👤 USER (richiede ruolo USER o ADMIN)
 
 #### Cocktails
 
-| Metodo | Endpoint | Descrizione |
-|--------|----------|-------------|
-| GET | `/api/user/cocktails` | Lista completa di tutti i cocktail |
-| GET | `/api/user/cocktails/{id}` | Dettagli cocktail per ID |
-| GET | `/api/user/cocktails/search?name={query}` | Cerca cocktail per nome |
-| GET | `/api/user/cocktails/category/{category}` | Filtra per categoria |
-| GET | `/api/user/cocktails/alcoholic?value=true` | Filtra per alcolico/analcolico |
-| POST | `/api/cocktails` | **Crea nuovo cocktail** (con auto-creazione ingredienti) |
-| PUT | `/api/cocktails/{id}` | **Aggiorna cocktail esistente** |
+| Metodo | Endpoint | Descrizione | Paginazione |
+|--------|----------|-------------|-------------|
+| GET | `/api/user/cocktails` | Lista completa di tutti i cocktail | ✅ `?page=0&size=10&sortBy=name&sortDir=asc` |
+| GET | `/api/user/cocktails/{id}` | Dettagli cocktail per ID | - |
+| GET | `/api/user/cocktails/search?name={query}` | Cerca cocktail per nome | ✅ `&page=0&size=10` |
+| GET | `/api/user/cocktails/category/{category}` | Filtra per categoria | ✅ `?page=0&size=10` |
+| GET | `/api/user/cocktails/alcoholic?value=true` | Filtra per alcolico/analcolico | - |
+| POST | `/api/cocktails` | **Crea nuovo cocktail** (con auto-creazione ingredienti) | - |
+| PUT | `/api/cocktails/{id}` | **Aggiorna cocktail esistente** | - |
 
 #### Ingredienti
 
@@ -528,47 +528,102 @@ mvn spring-boot:run
 6. Tab **Credentials** → Imposta password (Temporary: OFF)
 7. Tab **Role mappings** → Assegna ruoli USER/ADMIN
 
-## Changelog (Oggi)
+## Changelog
 
-### ✅ Database Normalizzato
+### 📄 Paginazione (Dicembre 2025)
+
+#### ✅ Implementata Paginazione Completa
+**Endpoint paginati:**
+- `GET /api/public/cocktails` - Lista pubblica cocktail
+- `GET /api/user/cocktails` - Lista completa cocktail (autenticato)
+- `GET /api/user/cocktails/category/{category}` - Filtro per categoria
+- `GET /api/user/cocktails/search?name={query}` - Ricerca per nome
+- `GET /api/ingredients` - Lista ingredienti
+- `GET /api/ingredients/search?name={query}` - Ricerca ingredienti
+
+**Parametri di paginazione:**
+- `page` (default: 0) - Numero pagina (0-based)
+- `size` (default: 10) - Elementi per pagina
+- `sortBy` (default: "name") - Campo per ordinamento
+- `sortDir` (default: "asc") - Direzione: "asc" o "desc"
+
+**Struttura risposta paginata:**
+```json
+{
+  "content": [...],          // Array di elementi della pagina corrente
+  "totalElements": 25,       // Totale elementi nel database
+  "totalPages": 3,           // Totale pagine disponibili
+  "number": 0,               // Numero pagina corrente (0-based)
+  "size": 10,                // Elementi per pagina
+  "first": true,             // È la prima pagina?
+  "last": false,             // È l'ultima pagina?
+  "numberOfElements": 10,    // Elementi in questa pagina
+  "empty": false             // Pagina vuota?
+}
+```
+
+**Modifiche al codice:**
+- `CocktailController`: 4 endpoint convertiti da `List<Cocktail>` a `Page<Cocktail>`
+- `CocktailService`: aggiunti 3 metodi paginati con `PageRequest` e `Sort`
+- `CocktailRepository`: aggiunti overload con parametro `Pageable`
+- `IngredientController`: 2 endpoint convertiti a `Page<Ingredient>`
+- `IngredientService`: aggiunti 2 metodi paginati
+- `IngredientRepository`: aggiunto overload `findByNameContainingIgnoreCase(String, Pageable)`
+
+**Vantaggi:**
+- ⚡ Performance migliorate (LIMIT/OFFSET SQL automatico)
+- 📦 Riduzione banda (solo dati necessari)
+- 📱 Frontend-friendly (metadata per UI pagination)
+- 🔍 Ordinamento flessibile per qualsiasi campo
+
+**Esempio chiamata:**
+```bash
+GET http://localhost:8081/api/public/cocktails?page=0&size=5&sortBy=name&sortDir=desc
+```
+
+---
+
+### 🗄️ Database Normalizzato (Dicembre 2025)
+
+#### ✅ Database Normalizzato
 - Creata tabella `ingredient` (28 ingredienti precaricati)
 - Creata tabella `cocktail_ingredient` (join con campo `quantity`)
 - Creata tabella `favorite` (user_id da JWT)
 - Rimosso campo `ingredients` da tabella `cocktail`
 
-### ✅ Nuove Entità JPA
+#### ✅ Nuove Entità JPA
 - `Ingredient.java` con relazione `@OneToMany` a `CocktailIngredient`
 - `CocktailIngredient.java` join entity con `@JsonBackReference`
 - `Favorite.java` con `FetchType.EAGER` per evitare proxy Hibernate
 - `Cocktail.java` aggiornato con `Set<CocktailIngredient>`
 
-### ✅ Nuovi Repository
+#### ✅ Nuovi Repository
 - `IngredientRepository` con query `findByNameIgnoreCase`, `existsByNameIgnoreCase`
 - `CocktailIngredientRepository` con `findByCocktailId`, `deleteByCocktailId`
 - `FavoriteRepository` con `findByUserId`, `existsByUserIdAndCocktailId`
 
-### ✅ Nuovi Service
+#### ✅ Nuovi Service
 - `IngredientService` con **auto-creazione**: `findOrCreateIngredient(name, category, unit)`
 - `FavoriteService` completo (add, remove, toggle, check)
 - `CocktailService` modificato per accettare `CocktailRequest` DTO
 
-### ✅ Nuovi Controller
+#### ✅ Nuovi Controller
 - `IngredientController` (GET pubblico, POST/PUT USER/ADMIN, DELETE ADMIN)
 - `FavoriteController` (tutti i metodi per USER/ADMIN)
 - `CocktailController` modificato: POST/PUT per USER/ADMIN (prima solo ADMIN)
 
-### ✅ Login Semplificato
+#### ✅ Login Semplificato
 - `AuthController` usa `@RequestParam` invece di `@RequestBody`
 - Risposta con `LoginResponse` DTO (token, expiresIn, tokenType, refreshToken)
 - Endpoint: `GET /api/auth/login?username=X&password=Y`
 
-### ✅ Fix Critici
+#### ✅ Fix Critici
 - Realm rinominato `cocktail-realm` → `cocktail_realm` (underscore)
 - JSON serialization: aggiunti `@JsonIgnore`, `@JsonBackReference`, `@JsonManagedReference`
 - Rimossi metodi `getIngredients()`/`setIngredients()` obsoleti
 - `Favorite.cocktail` cambiato da LAZY a EAGER per serializzazione
 
-### ✅ Sistema Permessi
+#### ✅ Sistema Permessi
 - **USER** può creare/modificare cocktail e ingredienti
 - **ADMIN** può eliminare cocktail e ingredienti
 - Auto-creazione ingredienti durante creazione cocktail
