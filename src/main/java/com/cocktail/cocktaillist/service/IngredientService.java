@@ -3,6 +3,10 @@ package com.cocktail.cocktaillist.service;
 import com.cocktail.cocktaillist.model.Ingredient;
 import com.cocktail.cocktaillist.repository.IngredientRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -93,14 +97,22 @@ public class IngredientService {
 
     /**
      * Crea un nuovo ingrediente
-     * Verifica prima che non esista già uno con lo stesso nome
+     * Verifica prima che non esista già uno con lo stesso nome o ID
      * 
      * @param ingredient Ingrediente da creare
      * @return Ingrediente creato
      * @throws RuntimeException se esiste già
      */
     public Ingredient createIngredient(Ingredient ingredient) {
-        // Verifica duplicati
+        // Se viene passato un ID nel JSON, verifica che non esista già
+        if (ingredient.getId() != null && ingredientRepository.existsById(ingredient.getId())) {
+            throw new RuntimeException("Impossibile creare: esiste già un ingrediente con ID: " + ingredient.getId());
+        }
+        
+        // Forza l'ID a null per garantire che venga generato automaticamente
+        ingredient.setId(null);
+        
+        // Verifica duplicati per nome
         if (ingredientRepository.existsByNameIgnoreCase(ingredient.getName())) {
             throw new RuntimeException("Esiste già un ingrediente con nome: " + ingredient.getName());
         }
@@ -127,6 +139,15 @@ public class IngredientService {
         return ingredientRepository.save(ingredient);
     }
 
+    //get all ingridient ids
+    public List<Long> getAllIngredientIds() {
+        return ingredientRepository.findAllIds();
+    }
+
+
+
+
+
     /**
      * Elimina un ingrediente
      * 
@@ -147,5 +168,40 @@ public class IngredientService {
      */
     public long countIngredients() {
         return ingredientRepository.count();
+    }
+
+    // ========================================
+    // OPERAZIONI DI LETTURA PAGINATE
+    // ========================================
+
+    /**
+     * Ottiene tutti gli ingredienti con paginazione e ordinamento.
+     * 
+     * @param page Numero pagina (0-based)
+     * @param size Elementi per pagina
+     * @param sortBy Campo per ordinamento
+     * @param sortDir Direzione ordinamento ("asc" o "desc")
+     * @return Pagina di ingredienti
+     */
+    public Page<Ingredient> getAllIngredientsPaginated(int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("asc") 
+            ? Sort.by(sortBy).ascending() 
+            : Sort.by(sortBy).descending();
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return ingredientRepository.findAll(pageable);
+    }
+
+    /**
+     * Cerca ingredienti per nome con paginazione.
+     * 
+     * @param name Parte del nome da cercare
+     * @param page Numero pagina
+     * @param size Elementi per pagina
+     * @return Pagina di ingredienti che matchano
+     */
+    public Page<Ingredient> searchByNamePaginated(String name, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
+        return ingredientRepository.findByNameContainingIgnoreCase(name, pageable);
     }
 }

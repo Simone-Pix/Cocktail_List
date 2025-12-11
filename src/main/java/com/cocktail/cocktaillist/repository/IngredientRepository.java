@@ -1,7 +1,10 @@
 package com.cocktail.cocktaillist.repository;
 
 import com.cocktail.cocktaillist.model.Ingredient;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -48,6 +51,18 @@ public interface IngredientRepository extends JpaRepository<Ingredient, Long> {
      * @return Lista di ingredienti che matchano
      */
     List<Ingredient> findByNameContainingIgnoreCase(String name);
+
+
+    @Query("SELECT i.id FROM Ingredient i ORDER BY i.id")
+    List<Long> findAllIds();
+    /**
+     * Versione paginata: cerca ingredienti il cui nome contiene una stringa
+     * 
+     * @param name Parte del nome da cercare
+     * @param pageable Informazioni di paginazione (page, size, sort)
+     * @return Page di ingredienti che matchano con metadati di paginazione
+     */
+    Page<Ingredient> findByNameContainingIgnoreCase(String name, Pageable pageable);
 
     /**
      * Verifica se esiste un ingrediente con quel nome (case-insensitive)
