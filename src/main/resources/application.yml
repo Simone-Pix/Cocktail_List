@@ -31,6 +31,9 @@ keycloak:
   auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8080}
   resource: cocktail-client
   public-client: true
+  admin:
+    username: admin
+    password: admin
 
 # Springdoc OpenAPI / Swagger UI
 springdoc:

@@ -49,6 +49,13 @@
             <version>${keycloak.version}</version>
         </dependency>
         
+        <!-- Keycloak Admin Client (per gestire utenti via API) -->
+        <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-admin-client</artifactId>
+            <version>${keycloak.version}</version>
+        </dependency>
+        
         <!-- Spring Boot Data JPA (per futuro database cocktails) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
