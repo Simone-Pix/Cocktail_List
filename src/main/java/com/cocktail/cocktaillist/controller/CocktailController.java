@@ -3,6 +3,9 @@ package com.cocktail.cocktaillist.controller;
 import com.cocktail.cocktaillist.dto.CocktailRequest;
 import com.cocktail.cocktaillist.model.Cocktail;
 import com.cocktail.cocktaillist.service.CocktailService;
+
+import io.swagger.v3.oas.annotations.Operation;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -172,6 +175,11 @@ public class CocktailController {
      */
     @PostMapping("/cocktails")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @Operation(
+        summary = "Crea un nuovo cocktail",
+        description = "Crea un nuovo cocktail con i dati forniti. Richiede autenticazione con ruolo USER o ADMIN."+
+                      "INSERIRE UN SOLO COCKTAIL PER VOLTA"
+    )
     public ResponseEntity<Cocktail> createCocktail(@RequestBody CocktailRequest request) {
         try {
             Cocktail created = cocktailService.createCocktail(request);
