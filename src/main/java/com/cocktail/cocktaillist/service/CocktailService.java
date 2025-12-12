@@ -3,6 +3,7 @@ package com.cocktail.cocktaillist.service;
 import com.cocktail.cocktaillist.dto.CocktailRequest;
 import com.cocktail.cocktaillist.dto.IngredientRequest;
 import com.cocktail.cocktaillist.model.Cocktail;
+import com.cocktail.cocktaillist.model.CocktailIngredient;
 import com.cocktail.cocktaillist.model.Ingredient;
 import com.cocktail.cocktaillist.repository.CocktailRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -216,18 +217,22 @@ public class CocktailService {
     }
 
     /**
-     * Aggiorna un cocktail esistente con gestione ingredienti.
-     * 
+     * Aggiorna un cocktail esistente (SENZA modificare ingredienti).
+     * Per gestire gli ingredienti usa i metodi dedicati:
+     * - addIngredientsToCoktail()
+     * - removeIngredientFromCocktail()
+     * - updateIngredientQuantity()
+     *
      * @param id ID del cocktail da aggiornare
-     * @param request Nuovi dettagli del cocktail
+     * @param request Nuovi dettagli del cocktail (ingredienti vengono ignorati)
      * @return Il cocktail aggiornato
      * @throws RuntimeException se il cocktail non esiste
      */
     public Cocktail updateCocktail(Long id, CocktailRequest request) {
         // Trova il cocktail esistente
         Cocktail existingCocktail = getCocktailById(id);
-        
-        // Aggiorna i campi (solo se non null)
+
+        // Aggiorna solo i campi base (NON gli ingredienti)
         if (request.getName() != null) {
             existingCocktail.setName(request.getName());
         }
@@ -249,23 +254,10 @@ public class CocktailService {
         if (request.getAlcoholic() != null) {
             existingCocktail.setAlcoholic(request.getAlcoholic());
         }
-        
-        // Aggiorna ingredienti: rimuovi vecchi e aggiungi nuovi
-        if (request.getIngredients() != null) {
-            // Rimuovi tutte le relazioni esistenti
-            existingCocktail.clearIngredients();
-            
-            // Aggiungi i nuovi ingredienti con auto-creazione
-            for (IngredientRequest ingReq : request.getIngredients()) {
-                Ingredient ingredient = ingredientService.findOrCreateIngredient(
-                    ingReq.getName(), 
-                    ingReq.getCategory(), 
-                    ingReq.getUnit()
-                );
-                existingCocktail.addIngredient(ingredient, ingReq.getQuantity());
-            }
-        }
-        
+
+        // NOTA: Gli ingredienti NON vengono più modificati qui
+        // Usa gli endpoint dedicati per gestire ingredienti
+
         // Salva le modifiche (l'@PreUpdate aggiornerà updated_at automaticamente)
         return cocktailRepository.save(existingCocktail);
     }
@@ -283,6 +275,92 @@ public class CocktailService {
         }
         
         cocktailRepository.deleteById(id);
+    }
+
+    // ========================================
+    // OPERAZIONI SUGLI INGREDIENTI DEI COCKTAIL
+    // ========================================
+
+    /**
+     * Aggiunge uno o più ingredienti a un cocktail esistente.
+     * Se un ingrediente non esiste nel database, viene creato automaticamente.
+     *
+     * @param cocktailId ID del cocktail
+     * @param ingredientRequests Lista di ingredienti da aggiungere
+     * @return Il cocktail aggiornato
+     * @throws RuntimeException se il cocktail non esiste
+     */
+    public Cocktail addIngredientsToCocktail(Long cocktailId, List<IngredientRequest> ingredientRequests) {
+        Cocktail cocktail = getCocktailById(cocktailId);
+
+        if (ingredientRequests == null || ingredientRequests.isEmpty()) {
+            throw new RuntimeException("La lista ingredienti non può essere vuota");
+        }
+
+        for (IngredientRequest ingReq : ingredientRequests) {
+            // Trova o crea l'ingrediente
+            Ingredient ingredient = ingredientService.findOrCreateIngredient(
+                ingReq.getName(),
+                ingReq.getCategory(),
+                ingReq.getUnit()
+            );
+
+            // Aggiungi al cocktail
+            cocktail.addIngredient(ingredient, ingReq.getQuantity());
+        }
+
+        return cocktailRepository.save(cocktail);
+    }
+
+    /**
+     * Rimuove un ingrediente specifico da un cocktail.
+     *
+     * @param cocktailId ID del cocktail
+     * @param ingredientId ID dell'ingrediente da rimuovere
+     * @return Il cocktail aggiornato
+     * @throws RuntimeException se il cocktail o l'ingrediente non esistono
+     */
+    public Cocktail removeIngredientFromCocktail(Long cocktailId, Long ingredientId) {
+        Cocktail cocktail = getCocktailById(cocktailId);
+
+        // Trova la relazione CocktailIngredient da rimuovere
+        CocktailIngredient toRemove = cocktail.getCocktailIngredients().stream()
+            .filter(ci -> ci.getIngredient().getId().equals(ingredientId))
+            .findFirst()
+            .orElseThrow(() -> new RuntimeException(
+                "Ingrediente con ID " + ingredientId + " non trovato nel cocktail"
+            ));
+
+        // Rimuovi la relazione
+        cocktail.removeIngredient(toRemove);
+
+        return cocktailRepository.save(cocktail);
+    }
+
+    /**
+     * Aggiorna la quantità di un ingrediente in un cocktail.
+     *
+     * @param cocktailId ID del cocktail
+     * @param ingredientId ID dell'ingrediente
+     * @param newQuantity Nuova quantità
+     * @return Il cocktail aggiornato
+     * @throws RuntimeException se il cocktail o l'ingrediente non esistono
+     */
+    public Cocktail updateIngredientQuantity(Long cocktailId, Long ingredientId, String newQuantity) {
+        Cocktail cocktail = getCocktailById(cocktailId);
+
+        // Trova la relazione CocktailIngredient da aggiornare
+        CocktailIngredient toUpdate = cocktail.getCocktailIngredients().stream()
+            .filter(ci -> ci.getIngredient().getId().equals(ingredientId))
+            .findFirst()
+            .orElseThrow(() -> new RuntimeException(
+                "Ingrediente con ID " + ingredientId + " non trovato nel cocktail"
+            ));
+
+        // Aggiorna la quantità
+        toUpdate.setQuantity(newQuantity);
+
+        return cocktailRepository.save(cocktail);
     }
 
     /**

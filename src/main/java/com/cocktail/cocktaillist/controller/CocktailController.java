@@ -89,7 +89,11 @@ public class CocktailController {
         profile.put("email", jwt.getClaimAsString("email"));
         profile.put("firstName", jwt.getClaimAsString("given_name"));
         profile.put("lastName", jwt.getClaimAsString("family_name"));
-        profile.put("roles", jwt.getClaimAsStringList("realm_access.roles"));
+
+        // Estrai i ruoli correttamente da realm_access
+        Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+        profile.put("roles", realmAccess != null ? realmAccess.get("roles") : null);
+
         profile.put("tokenExpiration", jwt.getExpiresAt());
         return profile;
     }
@@ -231,12 +235,18 @@ public class CocktailController {
     /**
      * Aggiorna un cocktail esistente (USER e ADMIN).
      * PUT http://localhost:8081/api/cocktails/{id}
-     * 
+     * NOTA: NON modifica gli ingredienti, usa gli endpoint dedicati
+     *
      * @param id ID del cocktail da aggiornare
-     * @param request Nuovi dati con CocktailRequest
+     * @param request Nuovi dati con CocktailRequest (ingredienti ignorati)
      */
     @PutMapping("/cocktails/{id}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @Operation(
+        summary = "Aggiorna le info di un cocktail",
+        description = "Aggiorna nome, descrizione, categoria, ecc. SENZA modificare gli ingredienti. " +
+                      "Per gestire ingredienti usa gli endpoint dedicati."
+    )
     public ResponseEntity<Cocktail> updateCocktail(
             @PathVariable Long id,
             @RequestBody CocktailRequest request) {
@@ -245,6 +255,95 @@ public class CocktailController {
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
+     * Aggiunge uno o più ingredienti a un cocktail (USER e ADMIN).
+     * POST http://localhost:8081/api/cocktails/{id}/ingredients
+     * Body: { "ingredients": [{"name": "Lime", "quantity": "20ml"}] }
+     *
+     * @param id ID del cocktail
+     * @param request Request con lista ingredienti da aggiungere
+     */
+    @PostMapping("/cocktails/{id}/ingredients")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @Operation(
+        summary = "Aggiungi ingredienti a un cocktail",
+        description = "Aggiunge uno o più ingredienti al cocktail. " +
+                      "Se un ingrediente non esiste, viene creato automaticamente. " +
+                      "NON rimuove gli ingredienti esistenti."
+    )
+    public ResponseEntity<Cocktail> addIngredients(
+            @PathVariable Long id,
+            @RequestBody CocktailRequest request) {
+        try {
+            Cocktail updated = cocktailService.addIngredientsToCocktail(id, request.getIngredients());
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    /**
+     * Rimuove un ingrediente da un cocktail (USER e ADMIN).
+     * DELETE http://localhost:8081/api/cocktails/{cocktailId}/ingredients/{ingredientId}
+     *
+     * @param cocktailId ID del cocktail
+     * @param ingredientId ID dell'ingrediente da rimuovere
+     */
+    @DeleteMapping("/cocktails/{cocktailId}/ingredients/{ingredientId}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @Operation(
+        summary = "Rimuovi un ingrediente da un cocktail",
+        description = "Rimuove la relazione tra il cocktail e l'ingrediente specificato. " +
+                      "L'ingrediente rimane nel database, viene solo scollegato dal cocktail."
+    )
+    public ResponseEntity<Cocktail> removeIngredient(
+            @PathVariable Long cocktailId,
+            @PathVariable Long ingredientId) {
+        try {
+            Cocktail updated = cocktailService.removeIngredientFromCocktail(cocktailId, ingredientId);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    /**
+     * Aggiorna la quantità di un ingrediente in un cocktail (USER e ADMIN).
+     * PATCH http://localhost:8081/api/cocktails/{cocktailId}/ingredients/{ingredientId}
+     * Body: { "quantity": "60ml" }
+     *
+     * @param cocktailId ID del cocktail
+     * @param ingredientId ID dell'ingrediente
+     * @param quantityRequest Oggetto con la nuova quantità
+     */
+    @PatchMapping("/cocktails/{cocktailId}/ingredients/{ingredientId}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @Operation(
+        summary = "Aggiorna la quantità di un ingrediente",
+        description = "Modifica solo la quantità di un ingrediente già presente nel cocktail."
+    )
+    public ResponseEntity<Cocktail> updateIngredientQuantity(
+            @PathVariable Long cocktailId,
+            @PathVariable Long ingredientId,
+            @RequestBody Map<String, String> quantityRequest) {
+        try {
+            String newQuantity = quantityRequest.get("quantity");
+            if (newQuantity == null || newQuantity.isEmpty()) {
+                throw new RuntimeException("Il campo 'quantity' è obbligatorio");
+            }
+            Cocktail updated = cocktailService.updateIngredientQuantity(cocktailId, ingredientId, newQuantity);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(null);
         }
     }
 
