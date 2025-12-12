@@ -120,7 +120,7 @@ public class AuthController {
     public ResponseEntity<?> refreshToken(@RequestParam String refreshToken) {
         RefreshRequest refreshRequest = new RefreshRequest(refreshToken);
         try {
-            String tokenUrl = keycloakUrl + "/realms/cocktail-realm/protocol/openid-connect/token";
+            String tokenUrl = keycloakUrl + "/realms/cocktail_realm/protocol/openid-connect/token";
             
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -198,7 +198,7 @@ public class AuthController {
                     LoginResponse loginData = (LoginResponse) loginBody;
                     Map<String, Object> responseBody = new HashMap<>();
                     responseBody.put("success", true);
-                    responseBody.put("message", "✅ Registrazione completata! Sei già loggato.");
+                    responseBody.put("message", "Registrazione completata! Sei già loggato.");
                     responseBody.put("userId", userId);
                     responseBody.put("username", username);
                     responseBody.put("token", loginData.getToken());
@@ -213,7 +213,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(Map.of(
                         "success", true,
-                        "message", "✅ Registrazione completata! Ora puoi fare login con le tue credenziali.",
+                        "message", " Registrazione completata! Ora puoi fare login con le tue credenziali.",
                         "userId", userId,
                         "username", username,
                         "loginUrl", "/api/auth/login"
@@ -228,7 +228,7 @@ public class AuthController {
                         .body(Map.of(
                             "success", false,
                             "error", "Username già esistente",
-                            "message", "⚠️ Questo username è già registrato. Prova a fare login o usa un altro username.",
+                            "message", " Questo username è già registrato. Prova a fare login o usa un altro username.",
                             "suggestion", "Se è il tuo account, usa /api/auth/login",
                             "loginUrl", "/api/auth/login"
                         ));
@@ -239,7 +239,7 @@ public class AuthController {
                         .body(Map.of(
                             "success", false,
                             "error", "Email già esistente",
-                            "message", "⚠️ Questa email è già registrata. Prova a fare login o usa un'altra email.",
+                            "message", " Questa email è già registrata. Prova a fare login o usa un'altra email.",
                             "suggestion", "Se è il tuo account, usa /api/auth/login",
                             "loginUrl", "/api/auth/login"
                         ));
@@ -249,14 +249,14 @@ public class AuthController {
                     .body(Map.of(
                         "success", false,
                         "error", errorMessage,
-                        "message", "❌ Errore durante la registrazione: " + errorMessage
+                        "message", " Errore durante la registrazione: " + errorMessage
                     ));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of(
                         "success", false,
                         "error", "Errore interno del server",
-                        "message", "❌ Si è verificato un errore imprevisto: " + e.getMessage()
+                        "message", " Si è verificato un errore imprevisto: " + e.getMessage()
                     ));
         }
     }
