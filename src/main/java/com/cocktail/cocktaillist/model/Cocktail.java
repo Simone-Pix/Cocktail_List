@@ -150,7 +150,7 @@ public class Cocktail {
      * Rimuove tutti gli ingredienti
      */
     public void clearIngredients() {
-        //implementare
+        cocktailIngredients.clear();
     }
 
     // ========================================
