@@ -119,14 +119,14 @@ Dopo l'autenticazione, puoi testare tutti gli endpoint direttamente da Swagger.
 | GET | `/api/user/cocktails/search?name={query}` | Cerca cocktail per nome | ✅ `&page=0&size=10` |
 | GET | `/api/user/cocktails/category/{category}` | Filtra per categoria | ✅ `?page=0&size=10` |
 | GET | `/api/user/cocktails/alcoholic?value=true` | Filtra per alcolico/analcolico | - |
-| POST | `/api/cocktails` | **Crea nuovo cocktail** (con auto-creazione ingredienti) | - |
+| POST | `/api/cocktails` | **Crea nuovo cocktail** (con validazioni e valori di default) | - |
 | PUT | `/api/cocktails/{id}` | **Aggiorna cocktail esistente** | - |
 
 #### Ingredienti
 
 | Metodo | Endpoint | Descrizione |
 |--------|----------|-------------|
-| POST | `/api/ingredients` | **Crea nuovo ingrediente** |
+| POST | `/api/ingredients` | **Crea nuovo ingrediente** (con valori di default) |
 | PUT | `/api/ingredients/{id}` | **Aggiorna ingrediente** |
 
 #### Preferiti
@@ -350,7 +350,152 @@ POST /api/cocktails
 Il sistema:
 1. Cerca ogni ingrediente nel database (case-insensitive)
 2. Se esiste, lo usa
-3. Se **non** esiste, lo crea automaticamente con categoria "other"
+3. Se **non** esiste, lo crea automaticamente con valori di default
+
+### ✅ Validazione e Valori di Default
+
+#### 🍹 Creazione Cocktail (`POST /api/cocktails`)
+
+**Campi obbligatori:**
+- `name` - Nome del cocktail (**RICHIESTO**, non può essere null o vuoto)
+- `ingredients` - Array di ingredienti (**MINIMO 1 RICHIESTO**)
+  - Ogni ingrediente deve avere:
+    - `name` (**RICHIESTO**)
+    - `quantity` (**RICHIESTO**)
+
+**Valori di default automatici** (applicati se il campo è null o stringa vuota):
+- `description`: "Un buonissimo cocktail"
+- `category`: "Altro"
+- `glassType`: "Bicchiere standard"
+- `preparationMethod`: "Mescolare"
+- `alcoholic`: `true`
+
+**Esempio minimo** (solo campi obbligatori):
+```json
+POST /api/cocktails
+{
+  "name": "Mojito",
+  "ingredients": [
+    {"name": "Rum Bianco", "quantity": "50ml"},
+    {"name": "Menta", "quantity": "10 foglie"}
+  ]
+}
+```
+
+Risposta:
+```json
+{
+  "id": 9,
+  "name": "Mojito",
+  "description": "Un buonissimo cocktail",
+  "category": "Altro",
+  "glassType": "Bicchiere standard",
+  "preparationMethod": "Mescolare",
+  "alcoholic": true,
+  "imageUrl": null,
+  "cocktailIngredients": [...],
+  "createdAt": "2025-12-15T10:30:00",
+  "updatedAt": "2025-12-15T10:30:00"
+}
+```
+
+**Esempio completo** (tutti i campi specificati):
+```json
+POST /api/cocktails
+{
+  "name": "Mojito Cubano",
+  "description": "Il classico cocktail cubano con rum e menta",
+  "category": "Cocktail",
+  "glassType": "Tumbler alto",
+  "preparationMethod": "Pestare, mescolare e aggiungere ghiaccio",
+  "alcoholic": true,
+  "imageUrl": "https://example.com/mojito.jpg",
+  "ingredients": [
+    {"name": "Rum Havana Club", "quantity": "50ml"},
+    {"name": "Menta fresca", "quantity": "10 foglie"},
+    {"name": "Lime", "quantity": "1 intero"},
+    {"name": "Zucchero di canna", "quantity": "2 cucchiaini"}
+  ]
+}
+```
+
+#### 🌿 Creazione Ingrediente (`POST /api/ingredients`)
+
+**Campi obbligatori:**
+- `name` - Nome dell'ingrediente (**RICHIESTO**, non può essere null o vuoto)
+
+**Valori di default automatici** (applicati se il campo è null o stringa vuota):
+- `category`: "Spezia particolare"
+- `description`: "Ingrediente speciale"
+- `unit`: "pezzi"
+
+**Esempio minimo** (solo campo obbligatorio):
+```json
+POST /api/ingredients
+{
+  "name": "Test Ingrediente"
+}
+```
+
+Risposta:
+```json
+{
+  "id": 36,
+  "name": "Test Ingrediente",
+  "category": "Spezia particolare",
+  "description": "Ingrediente speciale",
+  "unit": "pezzi",
+  "createdAt": "2025-12-15T10:30:00"
+}
+```
+
+**Esempio completo** (tutti i campi specificati):
+```json
+POST /api/ingredients
+{
+  "name": "Rum Havana Club",
+  "category": "Spirit",
+  "unit": "ml",
+  "description": "Rum cubano invecchiato 7 anni"
+}
+```
+
+Risposta:
+```json
+{
+  "id": 37,
+  "name": "Rum Havana Club",
+  "category": "Spirit",
+  "description": "Rum cubano invecchiato 7 anni",
+  "unit": "ml",
+  "createdAt": "2025-12-15T10:30:00"
+}
+```
+
+**Validazioni applicate:**
+- ✅ Nome ingrediente obbligatorio (non null, non vuoto)
+- ✅ Controllo duplicati: se esiste già un ingrediente con lo stesso nome (case-insensitive), ritorna errore 409
+- ✅ Valori di default applicati automaticamente a campi vuoti
+- ✅ Nessun campo può rimanere null dopo la creazione
+
+#### 📋 Riepilogo Validazioni
+
+| Entità | Campo | Obbligatorio | Default | Può essere null? |
+|--------|-------|--------------|---------|------------------|
+| **Cocktail** | name | ✅ Sì | - | ❌ No |
+| | description | ❌ No | "Un buonissimo cocktail" | ❌ No |
+| | category | ❌ No | "Altro" | ❌ No |
+| | glassType | ❌ No | "Bicchiere standard" | ❌ No |
+| | preparationMethod | ❌ No | "Mescolare" | ❌ No |
+| | alcoholic | ❌ No | true | ❌ No |
+| | imageUrl | ❌ No | - | ✅ Sì |
+| | ingredients | ✅ Sì (min 1) | - | ❌ No |
+| **Ingredient** | name | ✅ Sì | - | ❌ No |
+| | category | ❌ No | "Spezia particolare" | ❌ No |
+| | description | ❌ No | "Ingrediente speciale" | ❌ No |
+| | unit | ❌ No | "pezzi" | ❌ No |
+| **IngredientRequest** | name | ✅ Sì | - | ❌ No |
+| (nei cocktail) | quantity | ✅ Sì | - | ❌ No |
 
 ### ⭐ Sistema Preferiti
 
@@ -594,6 +739,60 @@ mvn spring-boot:run
 7. Tab **Role mappings** → Assegna ruoli USER/ADMIN
 
 ## Changelog
+
+### ✅ Validazione e Valori di Default (Dicembre 2025)
+
+#### ✅ Validazione Creazione Cocktail
+- **Campo obbligatorio**: `name` non può essere null o stringa vuota
+- **Minimo ingredienti**: Un cocktail deve avere almeno 1 ingrediente
+- **Validazione ingredienti**: Ogni ingrediente deve avere `name` e `quantity` non vuoti
+- **Controllo duplicati**: Verifica se esiste già un cocktail con lo stesso nome (case-insensitive)
+- **File modificato**: `CocktailService.java` (linee 184-251)
+
+#### ✅ Valori di Default Cocktail
+Campi con valori automatici se null o vuoti:
+- `description`: "Un buonissimo cocktail"
+- `category`: "Altro"
+- `glassType`: "Bicchiere standard"
+- `preparationMethod`: "Mescolare"
+- `alcoholic`: `true`
+- **Implementazione**: Controllo `if (field == null || field.trim().isEmpty())` prima dell'assegnazione
+- **File modificato**: `CocktailService.java` (linee 197-235)
+
+#### ✅ Validazione Creazione Ingrediente
+- **Campo obbligatorio**: `name` non può essere null o stringa vuota
+- **Controllo duplicati**: Verifica se esiste già un ingrediente con lo stesso nome (case-insensitive)
+- **File modificato**: `IngredientService.java` (linee 117-120)
+
+#### ✅ Valori di Default Ingrediente
+Campi con valori automatici se null o vuoti:
+- `category`: "Spezia particolare"
+- `description`: "Ingrediente speciale"
+- `unit`: "pezzi"
+- **Bug Fix**: Risolto `NullPointerException` quando si chiamava `.trim()` su stringhe null
+  - Soluzione: Usare variabili intermedie prima di chiamare `.trim()`
+  - Prima: `if (ingredient.getCategory() == null || ingredient.getCategory().trim().isEmpty())` ❌
+  - Dopo: `String category = ingredient.getCategory(); if (category == null || category.trim().isEmpty())` ✅
+- **File modificato**: `IngredientService.java` (linee 135-148)
+
+#### ✅ Miglioramenti Swagger Documentation
+- **Nascosto campo `id` dalle richieste POST**: Aggiunto `@Schema(accessMode = READ_ONLY)` al campo `id` in `Ingredient.java`
+- **Esempi JSON personalizzati**: Aggiunti due esempi per POST /api/ingredients:
+  - "Minimo": Solo campo `name` obbligatorio
+  - "Completo": Tutti i campi specificati
+- **Descrizione campo id**: "ID generato automaticamente (non includere nelle richieste)"
+- **Nota**: Gli endpoint con `@PathVariable` (GET/PUT/DELETE `/{id}`) non sono influenzati dall'annotazione
+- **File modificati**: 
+  - `Ingredient.java` (linea 19): Aggiunto `@Schema(accessMode = READ_ONLY)`
+  - `IngredientController.java` (linee 100-134): Aggiunto `@Operation` con esempi custom
+
+#### 📦 Impatto Utente
+- ✅ Creazione semplificata: Basta specificare solo i campi obbligatori
+- ✅ Nessun campo null: Tutti i campi opzionali hanno valori sensati di default
+- ✅ Swagger più chiaro: Gli esempi mostrano esattamente cosa inviare
+- ✅ Meno errori: Validazione immediata con messaggi chiari
+
+---
 
 ### 🔐 Fix Autenticazione (Dicembre 2025)
 
