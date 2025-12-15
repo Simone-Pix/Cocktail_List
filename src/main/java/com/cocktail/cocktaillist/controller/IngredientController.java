@@ -104,6 +104,29 @@ public class IngredientController {
      */
     @PostMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @io.swagger.v3.oas.annotations.Operation(
+        summary = "Crea un nuovo ingrediente",
+        description = "Crea un nuovo ingrediente. NON includere il campo 'id' nella richiesta (viene generato automaticamente). " +
+                      "Campi obbligatori: name. " +
+                      "Campi con default: category='Spezia particolare', unit='pezzi', description='Ingrediente speciale'",
+        requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Esempio request body",
+            content = @io.swagger.v3.oas.annotations.media.Content(
+                examples = {
+                    @io.swagger.v3.oas.annotations.media.ExampleObject(
+                        name = "Minimo",
+                        summary = "Solo nome (usa default per altri campi)",
+                        value = "{\"name\": \"Test Ingrediente\"}"
+                    ),
+                    @io.swagger.v3.oas.annotations.media.ExampleObject(
+                        name = "Completo",
+                        summary = "Tutti i campi specificati",
+                        value = "{\"name\": \"Rum Havana Club\", \"category\": \"Spirit\", \"unit\": \"ml\", \"description\": \"Rum cubano invecchiato\"}"
+                    )
+                }
+            )
+        )
+    )
     public ResponseEntity<?> createIngredient(@RequestBody Ingredient ingredient) {
         try {
             Ingredient created = ingredientService.createIngredient(ingredient);

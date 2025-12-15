@@ -47,8 +47,18 @@ public class IngredientService {
         // Non esiste → crealo
         Ingredient newIngredient = new Ingredient();
         newIngredient.setName(name);
-        newIngredient.setCategory(category != null ? category : "Altro");
+        
+        // Imposta category con default se null/vuota
+        newIngredient.setCategory(
+            category != null && !category.trim().isEmpty() 
+                ? category 
+                : "Spezia particolare"
+        );
+        
         newIngredient.setUnit(unit != null ? unit : "pezzi");
+        
+        // Imposta descrizione con default
+        newIngredient.setDescription("Ingrediente speciale");
         
         return ingredientRepository.save(newIngredient);
     }
@@ -104,6 +114,11 @@ public class IngredientService {
      * @throws RuntimeException se esiste già
      */
     public Ingredient createIngredient(Ingredient ingredient) {
+        // Validazione: nome obbligatorio
+        if (ingredient.getName() == null || ingredient.getName().trim().isEmpty()) {
+            throw new RuntimeException("Il nome dell'ingrediente è obbligatorio");
+        }
+        
         // Se viene passato un ID nel JSON, verifica che non esista già
         if (ingredient.getId() != null && ingredientRepository.existsById(ingredient.getId())) {
             throw new RuntimeException("Impossibile creare: esiste già un ingrediente con ID: " + ingredient.getId());
@@ -117,13 +132,30 @@ public class IngredientService {
             throw new RuntimeException("Esiste già un ingrediente con nome: " + ingredient.getName());
         }
         
+        // Imposta category con default se null/vuota
+        String category = ingredient.getCategory();
+        if (category == null || category.trim().isEmpty()) {
+            ingredient.setCategory("Spezia particolare");
+        }
+        
+        // Imposta descrizione con default se null/vuota
+        String description = ingredient.getDescription();
+        if (description == null || description.trim().isEmpty()) {
+            ingredient.setDescription("Ingrediente speciale");
+        }
+        
+        // Imposta unit con default se null/vuota
+        String unit = ingredient.getUnit();
+        if (unit == null || unit.trim().isEmpty()) {
+            ingredient.setUnit("pezzi");
+        }
+        
         return ingredientRepository.save(ingredient);
     }
 
     /**
      * Aggiorna un ingrediente esistente
      * 
-     * @param id ID ingrediente da aggiornare
      * @param ingredientDetails Nuovi dati
      * @return Ingrediente aggiornato
      * @throws RuntimeException se non trovato
