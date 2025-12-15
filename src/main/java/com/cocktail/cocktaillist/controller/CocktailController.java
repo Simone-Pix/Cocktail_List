@@ -225,17 +225,17 @@ public class CocktailController {
     }
 
     /**
-     * Crea un nuovo cocktail (USER e ADMIN).
+     * Crea un nuovo cocktail (USER e ADMIN) - Versione JSON.
      * POST http://localhost:8081/api/cocktails
      * Header: Authorization: Bearer <token>
      * Body: JSON con CocktailRequest
-     * 
+     *
      * @param request Dati del cocktail da creare con lista ingredienti
      */
     @PostMapping("/cocktails")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @Operation(
-        summary = "Crea un nuovo cocktail",
+        summary = "Crea un nuovo cocktail (JSON)",
         description = "Crea un nuovo cocktail con i dati forniti. Richiede autenticazione con ruolo USER o ADMIN."+
                       "INSERIRE UN SOLO COCKTAIL PER VOLTA"+
                       "Se viene inserito un ID di un Cocktail esistente,"+
@@ -243,6 +243,57 @@ public class CocktailController {
     )
     public ResponseEntity<Cocktail> createCocktail(@RequestBody CocktailRequest request) {
         try {
+            Cocktail created = cocktailService.createCocktail(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    /**
+     * Crea un nuovo cocktail (USER e ADMIN) - Versione con parametri form.
+     * POST http://localhost:8081/api/cocktails/form
+     * Header: Authorization: Bearer <token>
+     * Form params: name, description, category, glassType, etc.
+     * Body: JSON array degli ingredienti
+     *
+     * @param name Nome del cocktail (obbligatorio)
+     * @param description Descrizione del cocktail
+     * @param category Categoria
+     * @param glassType Tipo di bicchiere
+     * @param preparationMethod Metodo di preparazione
+     * @param imageUrl URL immagine
+     * @param alcoholic Se è alcolico (true/false)
+     * @param ingredientsJson JSON array con ingredienti
+     */
+    @PostMapping("/cocktails/form")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @Operation(
+        summary = "Crea un nuovo cocktail (Form)",
+        description = "Crea un cocktail usando parametri form individuali. " +
+                      "Gli ingredienti vanno passati come JSON array nel body. " +
+                      "Esempio body: [{\"name\":\"Rum\",\"quantity\":\"50ml\",\"category\":\"Spirit\",\"unit\":\"ml\"}]"
+    )
+    public ResponseEntity<Cocktail> createCocktailForm(
+            @RequestParam String name,
+            @RequestParam(required = false) String description,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String glassType,
+            @RequestParam(required = false) String preparationMethod,
+            @RequestParam(required = false) String imageUrl,
+            @RequestParam(required = false) Boolean alcoholic,
+            @RequestBody List<com.cocktail.cocktaillist.dto.IngredientRequest> ingredients) {
+        try {
+            CocktailRequest request = new CocktailRequest();
+            request.setName(name);
+            request.setDescription(description);
+            request.setCategory(category);
+            request.setGlassType(glassType);
+            request.setPreparationMethod(preparationMethod);
+            request.setImageUrl(imageUrl);
+            request.setAlcoholic(alcoholic);
+            request.setIngredients(ingredients);
+
             Cocktail created = cocktailService.createCocktail(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
         } catch (RuntimeException e) {
@@ -277,7 +328,7 @@ public class CocktailController {
     }
 
     /**
-     * Aggiunge uno o più ingredienti a un cocktail (USER e ADMIN).
+     * Aggiunge uno o più ingredienti a un cocktail (USER e ADMIN) - Versione JSON.
      * POST http://localhost:8081/api/cocktails/{id}/ingredients
      * Body: { "ingredients": [{"name": "Lime", "quantity": "20ml"}] }
      *
@@ -287,7 +338,7 @@ public class CocktailController {
     @PostMapping("/cocktails/{id}/ingredients")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @Operation(
-        summary = "Aggiungi ingredienti a un cocktail",
+        summary = "Aggiungi ingredienti a un cocktail (JSON)",
         description = "Aggiunge uno o più ingredienti al cocktail. " +
                       "Se un ingrediente non esiste, viene creato automaticamente. " +
                       "NON rimuove gli ingredienti esistenti."
@@ -297,6 +348,49 @@ public class CocktailController {
             @RequestBody CocktailRequest request) {
         try {
             Cocktail updated = cocktailService.addIngredientsToCocktail(id, request.getIngredients());
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    /**
+     * Aggiunge un singolo ingrediente a un cocktail (USER e ADMIN) - Versione con parametri form.
+     * POST http://localhost:8081/api/cocktails/{id}/ingredients/form
+     *
+     * @param id ID del cocktail
+     * @param name Nome dell'ingrediente (obbligatorio)
+     * @param quantity Quantità (obbligatorio)
+     * @param category Categoria dell'ingrediente (opzionale)
+     * @param unit Unità di misura (opzionale)
+     */
+    @PostMapping("/cocktails/{id}/ingredients/form")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @Operation(
+        summary = "Aggiungi un ingrediente a un cocktail (Form)",
+        description = "Aggiunge un singolo ingrediente usando parametri form individuali. " +
+                      "Se l'ingrediente non esiste, viene creato automaticamente."
+    )
+    public ResponseEntity<Cocktail> addIngredientForm(
+            @PathVariable Long id,
+            @RequestParam String name,
+            @RequestParam String quantity,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String unit) {
+        try {
+            com.cocktail.cocktaillist.dto.IngredientRequest ingredientRequest =
+                new com.cocktail.cocktaillist.dto.IngredientRequest();
+            ingredientRequest.setName(name);
+            ingredientRequest.setQuantity(quantity);
+            ingredientRequest.setCategory(category);
+            ingredientRequest.setUnit(unit);
+
+            List<com.cocktail.cocktaillist.dto.IngredientRequest> ingredients = new ArrayList<>();
+            ingredients.add(ingredientRequest);
+
+            Cocktail updated = cocktailService.addIngredientsToCocktail(id, ingredients);
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             Map<String, String> error = new HashMap<>();

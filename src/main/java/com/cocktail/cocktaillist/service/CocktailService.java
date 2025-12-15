@@ -182,24 +182,74 @@ public class CocktailService {
      * @throws RuntimeException se esiste già un cocktail con lo stesso nome
      */
     public Cocktail createCocktail(CocktailRequest request) {
+        // Validazione: nome obbligatorio
+        if (request.getName() == null || request.getName().trim().isEmpty()) {
+            throw new RuntimeException("Il nome del cocktail è obbligatorio");
+        }
+        
         // Validazione: controlla se esiste già
         if (cocktailRepository.existsByName(request.getName())) {
             throw new RuntimeException("Esiste già un cocktail con nome: " + request.getName());
         }
-        
+
+        // Validazione: un cocktail deve avere almeno un ingrediente
+        if (request.getIngredients() == null || request.getIngredients().isEmpty()) {
+            throw new RuntimeException("Un cocktail deve avere almeno un ingrediente");
+        }
+
         // Crea l'entità cocktail
         Cocktail cocktail = new Cocktail();
         cocktail.setName(request.getName());
-        cocktail.setDescription(request.getDescription());
-        cocktail.setCategory(request.getCategory());
-        cocktail.setGlassType(request.getGlassType());
-        cocktail.setPreparationMethod(request.getPreparationMethod());
-        cocktail.setImageUrl(request.getImageUrl());
-        cocktail.setAlcoholic(request.getAlcoholic());
         
+        // Imposta descrizione con default se nulla
+        cocktail.setDescription(
+            request.getDescription() != null && !request.getDescription().trim().isEmpty() 
+                ? request.getDescription() 
+                : "Un buonissimo cocktail"
+        );
+        
+        // Imposta category con default se nulla
+        cocktail.setCategory(
+            request.getCategory() != null && !request.getCategory().trim().isEmpty()
+                ? request.getCategory()
+                : "Altro"
+        );
+        
+        // Imposta glassType con default se nullo
+        cocktail.setGlassType(
+            request.getGlassType() != null && !request.getGlassType().trim().isEmpty()
+                ? request.getGlassType()
+                : "Bicchiere standard"
+        );
+        
+        // Imposta metodo di preparazione con default se nullo
+        cocktail.setPreparationMethod(
+            request.getPreparationMethod() != null && !request.getPreparationMethod().trim().isEmpty()
+                ? request.getPreparationMethod()
+                : "Mescolare"
+        );
+        
+        // imageUrl può essere null (opzionale)
+        cocktail.setImageUrl(request.getImageUrl());
+        
+        // Imposta alcoholic con default se nullo
+        cocktail.setAlcoholic(
+            request.getAlcoholic() != null ? request.getAlcoholic() : true
+        );
+
         // Gestione ingredienti: auto-crea se non esistono
         if (request.getIngredients() != null) {
             for (IngredientRequest ingReq : request.getIngredients()) {
+                // Validazione: nome ingrediente obbligatorio
+                if (ingReq.getName() == null || ingReq.getName().trim().isEmpty()) {
+                    throw new RuntimeException("Il nome dell'ingrediente è obbligatorio");
+                }
+                
+                // Validazione: quantità obbligatoria
+                if (ingReq.getQuantity() == null || ingReq.getQuantity().trim().isEmpty()) {
+                    throw new RuntimeException("La quantità dell'ingrediente è obbligatoria");
+                }
+                
                 // findOrCreateIngredient cerca l'ingrediente, se non esiste lo crea
                 Ingredient ingredient = ingredientService.findOrCreateIngredient(
                     ingReq.getName(), 
