@@ -10,9 +10,12 @@ API REST per la gestione di cocktail con autenticazione OAuth2/JWT tramite Keycl
 - [Utilizzo](#utilizzo)
 - [API Endpoints](#api-endpoints)
 - [Autenticazione](#autenticazione)
+  - [Gestione Token e Refresh](#%EF%B8%8F-gestione-token-e-refresh)
 - [Database](#database)
 - [Configurazione](#configurazione)
-- [Aggiornamenti Recenti](#aggiornamenti-recenti)
+- [Troubleshooting](#troubleshooting)
+- [Changelog](#changelog)
+- [Note di Sicurezza](#-note-di-sicurezza)
 
 ## Tecnologie
 
@@ -269,6 +272,39 @@ Realm: **cocktail_realm**
    - Password: `123456` (Temporary: OFF)
    - Role Mappings: aggiungi ruolo `USER`
 
+### ⏱️ Gestione Token e Refresh
+
+#### Durata dei token
+- **Access Token**: 5 minuti (300 secondi) - configurabile in Keycloak
+- **Refresh Token**: 30 minuti (1800 secondi) - configurabile in Keycloak
+
+#### Come refreshare il token in Swagger UI
+
+Quando il token scade (errore 401 Unauthorized):
+
+1. Copia il `refresh_token` dalla risposta di login originale
+2. Clicca sul pulsante **"Authorize"** 🔓 in alto a destra
+3. Clicca **"Logout"** per rimuovere il vecchio token
+4. Vai all'endpoint `POST /api/auth/refresh`
+5. Clicca **"Try it out"**
+6. Incolla il `refresh_token` nel parametro
+7. Clicca **"Execute"**
+8. Copia il nuovo `token` dalla risposta
+9. Clicca di nuovo **"Authorize"** e incolla il nuovo token
+
+**Nota**: Se anche il refresh_token è scaduto, dovrai fare login nuovamente.
+
+#### Configurare la durata dei token in Keycloak
+
+1. Vai su http://localhost:8080/admin
+2. Login con admin/admin
+3. Seleziona realm **cocktail_realm**
+4. Menu **Realm settings** → Tab **Tokens**
+5. Modifica:
+   - **Access Token Lifespan**: durata access_token (default: 5 min)
+   - **Refresh Token Max Lifespan**: durata massima refresh_token (default: 30 min)
+6. Clicca **Save**
+
 ### Ottenere un token via PowerShell
 
 ```powershell
@@ -420,6 +456,35 @@ docker-compose down
 docker-compose up -d
 ```
 
+### Token scaduto (401 Unauthorized)
+
+Problema: Ricevi errore 401 dopo 5 minuti dal login.
+
+**Causa**: L'access token ha una durata di 5 minuti per motivi di sicurezza.
+
+**Soluzioni**:
+1. **Usa il refresh token**: Chiama `POST /api/auth/refresh` con il `refresh_token`
+2. **Fai login di nuovo**: Se anche il refresh_token è scaduto
+3. **Aumenta la durata** (solo per sviluppo):
+   - Vai su Keycloak Admin Console
+   - Realm settings → Tokens tab
+   - Modifica "Access Token Lifespan" (es. 30 min per sviluppo)
+
+### Refresh token non funziona
+
+Problema: `/api/auth/refresh` ritorna errore 401.
+
+**Causa possibile**: Realm name errato o refresh_token scaduto.
+
+**Soluzione**:
+```bash
+# Verifica che il refresh token sia valido
+# Se ottieni 401, fai login di nuovo
+
+POST http://localhost:8081/api/auth/login
+?username=simone&password=123456
+```
+
 ### Realm does not exist / Client not found
 
 Problema: Mismatch tra nome realm in `application.yml` e Keycloak.
@@ -530,6 +595,24 @@ mvn spring-boot:run
 
 ## Changelog
 
+### 🔐 Fix Autenticazione (Dicembre 2025)
+
+#### ✅ Fix Realm Name nel Refresh Token
+- **Problema**: L'endpoint `/api/auth/refresh` usava `cocktail-realm` invece di `cocktail_realm`
+- **Fix**: Corretto realm name da `cocktail-realm` a `cocktail_realm` (underscore)
+- **File modificato**: `AuthController.java:123`
+- **Impatto**: Il refresh token ora funziona correttamente
+
+#### ✅ Migliorata Descrizione Swagger per Refresh
+- Aggiunte istruzioni dettagliate su come usare il refresh token in Swagger UI
+- Documentazione endpoint più chiara per gli utenti
+
+#### ✅ Rimossi Emoji dai Messaggi di Risposta
+- Puliti messaggi di risposta per migliore compatibilità con client API
+- Messaggi più professionali e machine-readable
+
+---
+
 ### 📄 Paginazione (Dicembre 2025)
 
 #### ✅ Implementata Paginazione Completa
@@ -627,6 +710,67 @@ GET http://localhost:8081/api/public/cocktails?page=0&size=5&sortBy=name&sortDir
 - **USER** può creare/modificare cocktail e ingredienti
 - **ADMIN** può eliminare cocktail e ingredienti
 - Auto-creazione ingredienti durante creazione cocktail
+
+## 🔒 Note di Sicurezza
+
+### ⚠️ Configurazione Sviluppo vs Produzione
+
+**ATTENZIONE**: Le impostazioni attuali sono pensate per **sviluppo locale** e **NON** sono sicure per produzione.
+
+#### Modifiche necessarie per produzione:
+
+1. **Cambia le password di default**:
+   - Database root: `rootpassword` → password complessa
+   - Keycloak admin: `admin/admin` → credenziali sicure
+   - Database users: `cocktail_pass`, `keycloak_pass` → password complesse
+
+2. **Abilita HTTPS**:
+   - Configura certificati SSL/TLS
+   - Imposta `KC_HOSTNAME_STRICT_HTTPS=true` in Keycloak
+   - Usa reverse proxy (nginx/traefik) con HTTPS
+
+3. **Gestione segreti**:
+   - NON committare password in git
+   - Usa variabili d'ambiente o vault (HashiCorp Vault, AWS Secrets Manager)
+   - File `.env` per configurazioni locali (aggiungi a `.gitignore`)
+
+4. **Token security**:
+   - Riduci durata access_token a 5-15 minuti
+   - Abilita token rotation per refresh_token
+   - Usa HTTPS per tutte le comunicazioni
+
+5. **Database**:
+   - NON esporre porta 3306 pubblicamente
+   - Backup regolari automatizzati
+   - Usa connection pooling ottimizzato
+   - Limita privilegi utenti database
+
+6. **Docker**:
+   - Non usare `start-dev` mode per Keycloak in produzione
+   - Usa `start` command con configurazione production
+   - Limita risorse container (CPU, RAM)
+   - Usa immagini specifiche con tag versione (non `latest`)
+
+#### Token Lifespans Consigliati
+
+| Ambiente | Access Token | Refresh Token | Session |
+|----------|--------------|---------------|---------|
+| Sviluppo | 30 min | 8 ore | 12 ore |
+| Staging | 15 min | 1 ora | 8 ore |
+| Produzione | 5 min | 30 min | 8 ore |
+
+#### Checklist Sicurezza Produzione
+
+- [ ] Password complesse per tutti i servizi
+- [ ] HTTPS abilitato su tutti gli endpoint
+- [ ] Variabili d'ambiente per secrets
+- [ ] Firewall configurato (solo porte necessarie esposte)
+- [ ] Backup database automatico
+- [ ] Logging e monitoring attivi
+- [ ] Rate limiting su API pubbliche
+- [ ] CORS configurato correttamente
+- [ ] Keycloak in production mode
+- [ ] Token lifespan ridotti
 
 ## Licenza
 
