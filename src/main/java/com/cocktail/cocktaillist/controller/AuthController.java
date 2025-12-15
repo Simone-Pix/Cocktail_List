@@ -41,47 +41,61 @@ public class AuthController {
 
     @PostMapping("/login")
     @Operation(
-        summary = "Login con username e password",
-        description = "Effettua il login con username e password e ricevi il token JWT. " +
+        summary = "Login con username e password (Form)",
+        description = "Effettua il login con username e password usando form params e ricevi il token JWT. " +
                      "Usa il token nel campo 'Bearer Authentication' di Swagger per autenticarti negli altri endpoint."
     )
     public ResponseEntity<?> login(
             @RequestParam String username,
             @RequestParam String password) {
         LoginRequest loginRequest = new LoginRequest(username, password);
+        return performLogin(loginRequest);
+    }
+
+    @PostMapping("/login/json")
+    @Operation(
+        summary = "Login con username e password (JSON)",
+        description = "Effettua il login con username e password usando JSON body e ricevi il token JWT. " +
+                     "Usa il token nel campo 'Bearer Authentication' di Swagger per autenticarti negli altri endpoint."
+    )
+    public ResponseEntity<?> loginJson(@RequestBody LoginRequest loginRequest) {
+        return performLogin(loginRequest);
+    }
+
+    private ResponseEntity<?> performLogin(LoginRequest loginRequest) {
         try {
             // Prepara la richiesta di refresh
             String tokenUrl = keycloakUrl + "/realms/cocktail_realm/protocol/openid-connect/token";
-            
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-            
+
             MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
             body.add("grant_type", "password");
             body.add("client_id", "cocktail-client");
             body.add("username", loginRequest.getUsername());
             body.add("password", loginRequest.getPassword());
-            
+
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-            
+
             // Chiama Keycloak per ottenere il token
             ResponseEntity<Map> response = restTemplate.postForEntity(tokenUrl, request, Map.class);
-            
+
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 Map<String, Object> keycloakResponse = response.getBody();
-                
+
                 // Crea risposta pulita con solo i dati necessari
                 LoginResponse loginResponse = new LoginResponse();
                 loginResponse.setToken((String) keycloakResponse.get("access_token"));
                 loginResponse.setExpiresIn((Integer) keycloakResponse.get("expires_in"));
                 loginResponse.setRefreshToken((String) keycloakResponse.get("refresh_token"));
-                
+
                 return ResponseEntity.ok(loginResponse);
             }
-            
+
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Credenziali non valide"));
-            
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Errore durante l'autenticazione: " + e.getMessage()));
