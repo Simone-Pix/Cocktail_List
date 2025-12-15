@@ -3,6 +3,7 @@ package com.cocktail.cocktaillist.controller;
 import com.cocktail.cocktaillist.dto.CocktailRequest;
 import com.cocktail.cocktaillist.model.Cocktail;
 import com.cocktail.cocktaillist.service.CocktailService;
+import com.cocktail.cocktaillist.service.FavoriteService;
 
 import io.swagger.v3.oas.annotations.Operation;
 
@@ -35,6 +36,9 @@ public class CocktailController {
 
     @Autowired
     private CocktailService cocktailService;
+
+    @Autowired
+    private FavoriteService favoriteService;
 
     // ========================================
     // ENDPOINT PUBBLICI (senza autenticazione)
@@ -75,16 +79,24 @@ public class CocktailController {
     // ========================================
 
     /**
-     * Profilo dell'utente autenticato.
+     * Profilo dell'utente autenticato con statistiche.
      * GET http://localhost:8081/api/user/profile
      * Header: Authorization: Bearer <token>
-     * 
+     *
+     * Restituisce informazioni sull'utente inclusi:
+     * - Dati personali (username, email, nome, cognome)
+     * - Ruoli assegnati
+     * - Scadenza token
+     * - Numero di cocktail preferiti
+     *
      * @param jwt Token JWT iniettato automaticamente da Spring Security
      */
     @GetMapping("/user/profile")
     @PreAuthorize("hasRole('USER')")
     public Map<String, Object> getUserProfile(@AuthenticationPrincipal Jwt jwt) {
         Map<String, Object> profile = new HashMap<>();
+
+        // Informazioni base dal JWT
         profile.put("username", jwt.getClaimAsString("preferred_username"));
         profile.put("email", jwt.getClaimAsString("email"));
         profile.put("firstName", jwt.getClaimAsString("given_name"));
@@ -95,6 +107,12 @@ public class CocktailController {
         profile.put("roles", realmAccess != null ? realmAccess.get("roles") : null);
 
         profile.put("tokenExpiration", jwt.getExpiresAt());
+
+        // Aggiungi il conteggio dei cocktail preferiti
+        String userId = jwt.getSubject(); // Usa il subject del JWT come userId
+        long favoritesCount = favoriteService.countUserFavorites(userId);
+        profile.put("favoritesCount", favoritesCount);
+
         return profile;
     }
 
