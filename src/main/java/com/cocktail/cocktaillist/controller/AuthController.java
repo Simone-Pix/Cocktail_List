@@ -115,7 +115,9 @@ public class AuthController {
     @PostMapping("/refresh")
     @Operation(
         summary = "Rinnova il token JWT",
-        description = "Ottieni un nuovo access_token usando il refresh_token ricevuto al login"
+        description = "Ottieni un nuovo access_token."+
+                      "Per Refreshare, eseguire il logOut da Authorize (bottone in alto a destra)"+
+                      "e inserire il Refresh_token ricevuto al login."
     )
     public ResponseEntity<?> refreshToken(@RequestParam String refreshToken) {
         RefreshRequest refreshRequest = new RefreshRequest(refreshToken);
