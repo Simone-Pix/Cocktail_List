@@ -388,6 +388,31 @@ public class CocktailService {
     }
 
     /**
+     * Rimuove un ingrediente specifico da un cocktail tramite nome (case-sensitive).
+     *
+     * @param cocktailId ID del cocktail
+     * @param ingredientName Nome dell'ingrediente da rimuovere
+     * @return Il cocktail aggiornato
+     * @throws RuntimeException se il cocktail o l'ingrediente non esistono
+     */
+    public Cocktail removeIngredientFromCocktailByName(Long cocktailId, String ingredientName) {
+        Cocktail cocktail = getCocktailById(cocktailId);
+
+        // Trova la relazione CocktailIngredient da rimuovere cercando per nome
+        CocktailIngredient toRemove = cocktail.getCocktailIngredients().stream()
+            .filter(ci -> ci.getIngredient().getName().equals(ingredientName))
+            .findFirst()
+            .orElseThrow(() -> new RuntimeException(
+                "Ingrediente '" + ingredientName + "' non trovato nel cocktail"
+            ));
+
+        // Rimuovi la relazione
+        cocktail.removeIngredient(toRemove);
+
+        return cocktailRepository.save(cocktail);
+    }
+
+    /**
      * Aggiorna la quantità di un ingrediente in un cocktail.
      *
      * @param cocktailId ID del cocktail
@@ -427,12 +452,77 @@ public class CocktailService {
 
     /**
      * Verifica se esiste un cocktail con un determinato nome.
-     * 
+     *
      * @param name Nome da verificare
      * @return true se esiste, false altrimenti
      */
     public boolean existsByName(String name) {
         return cocktailRepository.existsByName(name);
+    }
+
+    // ========================================
+    // METODI PER STATISTICHE ADMIN
+    // ========================================
+
+    /**
+     * Conta i cocktail alcolici.
+     *
+     * @return Numero di cocktail alcolici
+     */
+    public long countAlcoholic() {
+        return cocktailRepository.findByAlcoholic(true).size();
+    }
+
+    /**
+     * Conta i cocktail analcolici.
+     *
+     * @return Numero di cocktail analcolici
+     */
+    public long countNonAlcoholic() {
+        return cocktailRepository.findByAlcoholic(false).size();
+    }
+
+    /**
+     * Ottiene le top 5 categorie con più cocktail.
+     *
+     * @return Mappa con categoria e conteggio
+     */
+    public java.util.Map<String, Long> getTopCategories() {
+        return getAllCocktails().stream()
+            .filter(c -> c.getCategory() != null && !c.getCategory().trim().isEmpty())
+            .collect(java.util.stream.Collectors.groupingBy(
+                Cocktail::getCategory,
+                java.util.stream.Collectors.counting()
+            ))
+            .entrySet().stream()
+            .sorted(java.util.Map.Entry.<String, Long>comparingByValue().reversed())
+            .limit(5)
+            .collect(java.util.stream.Collectors.toMap(
+                java.util.Map.Entry::getKey,
+                java.util.Map.Entry::getValue,
+                (e1, e2) -> e1,
+                java.util.LinkedHashMap::new
+            ));
+    }
+
+    /**
+     * Ottiene l'ultimo cocktail creato.
+     *
+     * @return Optional con l'ultimo cocktail creato
+     */
+    public Optional<Cocktail> getLastCreatedCocktail() {
+        return getAllCocktails().stream()
+            .max(java.util.Comparator.comparing(Cocktail::getCreatedAt));
+    }
+
+    /**
+     * Ottiene l'ultimo cocktail modificato.
+     *
+     * @return Optional con l'ultimo cocktail modificato
+     */
+    public Optional<Cocktail> getLastUpdatedCocktail() {
+        return getAllCocktails().stream()
+            .max(java.util.Comparator.comparing(Cocktail::getUpdatedAt));
     }
 }
 
