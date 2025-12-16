@@ -226,7 +226,7 @@ public class IngredientService {
 
     /**
      * Cerca ingredienti per nome con paginazione.
-     * 
+     *
      * @param name Parte del nome da cercare
      * @param page Numero pagina
      * @param size Elementi per pagina
@@ -235,5 +235,28 @@ public class IngredientService {
     public Page<Ingredient> searchByNamePaginated(String name, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
         return ingredientRepository.findByNameContainingIgnoreCase(name, pageable);
+    }
+
+    // ========================================
+    // METODI PER STATISTICHE ADMIN
+    // ========================================
+
+    /**
+     * Ottiene gli ingredienti più utilizzati (top 10).
+     *
+     * @return Lista di mappe con nome ingrediente e conteggio utilizzi
+     */
+    public List<java.util.Map<String, Object>> getMostUsedIngredients() {
+        return getAllIngredients().stream()
+            .map(ingredient -> {
+                long count = ingredientRepository.countUsageByIngredientId(ingredient.getId());
+                java.util.Map<String, Object> result = new java.util.HashMap<>();
+                result.put("name", ingredient.getName());
+                result.put("count", count);
+                return result;
+            })
+            .sorted((a, b) -> Long.compare((Long)b.get("count"), (Long)a.get("count")))
+            .limit(10)
+            .collect(java.util.stream.Collectors.toList());
     }
 }

@@ -4,6 +4,7 @@ import com.cocktail.cocktaillist.dto.CocktailRequest;
 import com.cocktail.cocktaillist.model.Cocktail;
 import com.cocktail.cocktaillist.service.CocktailService;
 import com.cocktail.cocktaillist.service.FavoriteService;
+import com.cocktail.cocktaillist.service.IngredientService;
 
 import io.swagger.v3.oas.annotations.Operation;
 
@@ -39,6 +40,9 @@ public class CocktailController {
 
     @Autowired
     private FavoriteService favoriteService;
+
+    @Autowired
+    private IngredientService ingredientService;
 
     // ========================================
     // ENDPOINT PUBBLICI (senza autenticazione)
@@ -92,7 +96,7 @@ public class CocktailController {
      * @param jwt Token JWT iniettato automaticamente da Spring Security
      */
     @GetMapping("/user/profile")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public Map<String, Object> getUserProfile(@AuthenticationPrincipal Jwt jwt) {
         Map<String, Object> profile = new HashMap<>();
 
@@ -127,7 +131,7 @@ public class CocktailController {
      * @param sortDir Direzione ordinamento: "asc" o "desc" (default "asc")
      */
     @GetMapping("/user/cocktails")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public Page<Cocktail> getAllCocktails(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -143,7 +147,7 @@ public class CocktailController {
      * @param id ID del cocktail
      */
     @GetMapping("/user/cocktails/{id}")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<Cocktail> getCocktailById(@PathVariable Long id) {
         try {
             Cocktail cocktail = cocktailService.getCocktailById(id);
@@ -169,7 +173,7 @@ public class CocktailController {
      * @param size Elementi per pagina (default 10)
      */
     @GetMapping("/user/cocktails/category/{category}")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public Page<Cocktail> getCocktailsByCategory(
             @PathVariable String category,
             @RequestParam(defaultValue = "0") int page,
@@ -186,7 +190,7 @@ public class CocktailController {
      * @param size Elementi per pagina (default 10)
      */
     @GetMapping("/user/cocktails/search")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public Page<Cocktail> searchCocktails(
             @RequestParam String name,
             @RequestParam(defaultValue = "0") int page,
@@ -201,7 +205,7 @@ public class CocktailController {
      * @param value true per alcolici, false per analcolici
      */
     @GetMapping("/user/cocktails/alcoholic")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public List<Cocktail> getCocktailsByAlcoholic(@RequestParam Boolean value) {
         return cocktailService.getCocktailsByAlcoholic(value);
     }
@@ -211,16 +215,54 @@ public class CocktailController {
     // ========================================
 
     /**
-     * Statistiche per amministratori.
+     * Statistiche dettagliate per amministratori.
      * GET http://localhost:8081/api/admin/stats
+     *
+     * Restituisce:
+     * - Info admin e timestamp
+     * - Statistiche cocktail (totale, alcolici, analcolici, top categorie)
+     * - Statistiche ingredienti (totale, più utilizzati top 10)
+     * - Ultimo cocktail creato e modificato
      */
     @GetMapping("/admin/stats")
     @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> getAdminStats(@AuthenticationPrincipal Jwt jwt) {
         Map<String, Object> stats = new HashMap<>();
+
+        // Info admin
         stats.put("admin", jwt.getClaimAsString("preferred_username"));
-        stats.put("totalCocktails", cocktailService.countCocktails());
         stats.put("timestamp", java.time.LocalDateTime.now());
+
+        // Statistiche cocktail
+        Map<String, Object> cocktailStats = new HashMap<>();
+        cocktailStats.put("total", cocktailService.countCocktails());
+        cocktailStats.put("alcoholic", cocktailService.countAlcoholic());
+        cocktailStats.put("nonAlcoholic", cocktailService.countNonAlcoholic());
+        cocktailStats.put("topCategories", cocktailService.getTopCategories());
+
+        // Ultimo creato e modificato
+        cocktailService.getLastCreatedCocktail().ifPresent(c -> {
+            Map<String, Object> lastCreated = new HashMap<>();
+            lastCreated.put("name", c.getName());
+            lastCreated.put("date", c.getCreatedAt());
+            cocktailStats.put("lastCreated", lastCreated);
+        });
+
+        cocktailService.getLastUpdatedCocktail().ifPresent(c -> {
+            Map<String, Object> lastUpdated = new HashMap<>();
+            lastUpdated.put("name", c.getName());
+            lastUpdated.put("date", c.getUpdatedAt());
+            cocktailStats.put("lastUpdated", lastUpdated);
+        });
+
+        stats.put("cocktails", cocktailStats);
+
+        // Statistiche ingredienti
+        Map<String, Object> ingredientStats = new HashMap<>();
+        ingredientStats.put("total", ingredientService.countIngredients());
+        ingredientStats.put("mostUsed", ingredientService.getMostUsedIngredients());
+        stats.put("ingredients", ingredientStats);
+
         return stats;
     }
 
@@ -399,25 +441,54 @@ public class CocktailController {
         }
     }
 
+    // METODO DEPRECATO - Eliminazione per ID
+    // /**
+    //  * Rimuove un ingrediente da un cocktail (USER e ADMIN).
+    //  * DELETE http://localhost:8081/api/cocktails/{cocktailId}/ingredients/{ingredientId}
+    //  *
+    //  * @param cocktailId ID del cocktail
+    //  * @param ingredientId ID dell'ingrediente da rimuovere
+    //  */
+    // @DeleteMapping("/cocktails/{cocktailId}/ingredients/{ingredientId}")
+    // @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    // @Operation(
+    //     summary = "Rimuovi un ingrediente da un cocktail",
+    //     description = "Rimuove la relazione tra il cocktail e l'ingrediente specificato. " +
+    //                   "L'ingrediente rimane nel database, viene solo scollegato dal cocktail."
+    // )
+    // public ResponseEntity<Cocktail> removeIngredientById(
+    //         @PathVariable Long cocktailId,
+    //         @PathVariable Long ingredientId) {
+    //     try {
+    //         Cocktail updated = cocktailService.removeIngredientFromCocktail(cocktailId, ingredientId);
+    //         return ResponseEntity.ok(updated);
+    //     } catch (RuntimeException e) {
+    //         Map<String, String> error = new HashMap<>();
+    //         error.put("error", e.getMessage());
+    //         return ResponseEntity.badRequest().body(null);
+    //     }
+    // }
+
     /**
      * Rimuove un ingrediente da un cocktail (USER e ADMIN).
-     * DELETE http://localhost:8081/api/cocktails/{cocktailId}/ingredients/{ingredientId}
+     * DELETE http://localhost:8081/api/cocktails/{cocktailId}/ingredients/{ingredientName}
      *
      * @param cocktailId ID del cocktail
-     * @param ingredientId ID dell'ingrediente da rimuovere
+     * @param ingredientName Nome dell'ingrediente da rimuovere (case-sensitive)
      */
-    @DeleteMapping("/cocktails/{cocktailId}/ingredients/{ingredientId}")
+    @DeleteMapping("/cocktails/{cocktailId}/ingredients/{ingredientName}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @Operation(
         summary = "Rimuovi un ingrediente da un cocktail",
-        description = "Rimuove la relazione tra il cocktail e l'ingrediente specificato. " +
-                      "L'ingrediente rimane nel database, viene solo scollegato dal cocktail."
+        description = "Rimuove la relazione tra il cocktail e l'ingrediente specificato tramite nome. " +
+                      "L'ingrediente rimane nel database, viene solo scollegato dal cocktail. " +
+                      "Il nome deve corrispondere esattamente (case-sensitive)."
     )
     public ResponseEntity<Cocktail> removeIngredient(
             @PathVariable Long cocktailId,
-            @PathVariable Long ingredientId) {
+            @PathVariable String ingredientName) {
         try {
-            Cocktail updated = cocktailService.removeIngredientFromCocktail(cocktailId, ingredientId);
+            Cocktail updated = cocktailService.removeIngredientFromCocktailByName(cocktailId, ingredientName);
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             Map<String, String> error = new HashMap<>();

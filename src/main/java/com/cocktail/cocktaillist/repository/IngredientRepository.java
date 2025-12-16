@@ -67,9 +67,19 @@ public interface IngredientRepository extends JpaRepository<Ingredient, Long> {
     /**
      * Verifica se esiste un ingrediente con quel nome (case-insensitive)
      * Spring genera: SELECT COUNT(*) > 0 FROM ingredient WHERE LOWER(name) = LOWER(?)
-     * 
+     *
      * @param name Nome da verificare
      * @return true se esiste, false altrimenti
      */
     boolean existsByNameIgnoreCase(String name);
+
+    /**
+     * Conta quanti cocktail utilizzano un ingrediente specifico.
+     * Query personalizzata che conta le righe in cocktail_ingredient per questo ingrediente.
+     *
+     * @param ingredientId ID dell'ingrediente
+     * @return Numero di cocktail che usano questo ingrediente
+     */
+    @Query("SELECT COUNT(ci) FROM CocktailIngredient ci WHERE ci.ingredient.id = :ingredientId")
+    long countUsageByIngredientId(@org.springframework.data.repository.query.Param("ingredientId") Long ingredientId);
 }
