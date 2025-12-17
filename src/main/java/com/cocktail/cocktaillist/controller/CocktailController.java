@@ -140,6 +140,34 @@ public class CocktailController {
     }
 
     /**
+     * Lista cocktail con informazioni sui preferiti e colori personalizzati dell'utente.
+     * GET http://localhost:8081/api/user/cocktails/with-favorites?page=0&size=10
+     * Header: Authorization: Bearer <token>
+     * 
+     * Restituisce per ogni cocktail:
+     * - Tutti i dati del cocktail
+     * - isFavorite: true/false se è nei preferiti dell'utente
+     * - favoriteColor: colore personalizzato (se è un preferito), altrimenti null
+     * 
+     * @param jwt Token JWT per identificare l'utente
+     * @param page Numero pagina (default 0)
+     * @param size Elementi per pagina (default 10)
+     */
+    @GetMapping("/user/cocktails/with-favorites")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @Operation(summary = "Lista cocktail con stato preferiti e colori", 
+               description = "Restituisce tutti i cocktail con indicazione se sono preferiti e il loro colore personalizzato")
+    public ResponseEntity<Page<com.cocktail.cocktaillist.dto.CocktailWithFavoriteInfo>> getCocktailsWithFavoriteInfo(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        String userId = jwt.getSubject();
+        Page<com.cocktail.cocktaillist.dto.CocktailWithFavoriteInfo> result = 
+                cocktailService.getCocktailsWithFavoriteInfo(userId, page, size);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
      * Dettaglio di un singolo cocktail.
      * GET http://localhost:8081/api/user/cocktails/{id}
      * 

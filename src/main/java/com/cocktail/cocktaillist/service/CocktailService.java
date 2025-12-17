@@ -38,6 +38,9 @@ public class CocktailService {
     @Autowired
     private IngredientService ingredientService;
 
+    @Autowired
+    private com.cocktail.cocktaillist.repository.FavoriteRepository favoriteRepository;
+
     // ========================================
     // OPERAZIONI DI LETTURA
     // ========================================
@@ -523,6 +526,47 @@ public class CocktailService {
     public Optional<Cocktail> getLastUpdatedCocktail() {
         return getAllCocktails().stream()
             .max(java.util.Comparator.comparing(Cocktail::getUpdatedAt));
+    }
+
+    /**
+     * Ottiene tutti i cocktail con informazioni sui preferiti e colori personalizzati dell'utente.
+     * Per ogni cocktail restituisce:
+     * - I dati completi del cocktail
+     * - isFavorite: true se è nei preferiti dell'utente, false altrimenti
+     * - favoriteColor: l'oggetto Color personalizzato se è un preferito, null altrimenti
+     * 
+     * @param userId ID dell'utente dal JWT
+     * @param page Numero pagina
+     * @param size Dimensione pagina
+     * @return Page di CocktailWithFavoriteInfo
+     */
+    public Page<com.cocktail.cocktaillist.dto.CocktailWithFavoriteInfo> getCocktailsWithFavoriteInfo(
+            String userId, int page, int size) {
+        
+        Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
+        Page<Cocktail> cocktailsPage = cocktailRepository.findAll(pageable);
+        
+        // Ottieni tutti i preferiti dell'utente con i colori caricati esplicitamente
+        List<com.cocktail.cocktaillist.model.Favorite> userFavorites = 
+                favoriteRepository.findByUserIdWithColors(userId);
+        
+        // Crea una mappa cocktailId -> Favorite per accesso veloce
+        java.util.Map<Long, com.cocktail.cocktaillist.model.Favorite> favoritesMap = 
+                userFavorites.stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                        fav -> fav.getCocktail().getId(),
+                        fav -> fav
+                    ));
+        
+        // Mappa ogni cocktail al DTO con info sui preferiti
+        return cocktailsPage.map(cocktail -> {
+            com.cocktail.cocktaillist.model.Favorite favorite = favoritesMap.get(cocktail.getId());
+            boolean isFavorite = favorite != null;
+            com.cocktail.cocktaillist.model.Color favoriteColor = isFavorite ? favorite.getColor() : null;
+            
+            return new com.cocktail.cocktaillist.dto.CocktailWithFavoriteInfo(
+                    cocktail, isFavorite, favoriteColor);
+        });
     }
 }
 
