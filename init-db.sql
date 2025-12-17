@@ -36,6 +36,25 @@ FLUSH PRIVILEGES;
 USE cocktails;
 
 -- ==================================================
+-- TABELLA COLORI
+-- ==================================================
+-- Contiene i colori disponibili per personalizzare i cocktail preferiti
+CREATE TABLE IF NOT EXISTS color (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    hex_code VARCHAR(7) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
+
+
+
+
+-- ==================================================
 -- TABELLA INGREDIENTI
 -- ==================================================
 -- Contiene tutti gli ingredienti disponibili (normalizzati)
@@ -223,6 +242,28 @@ INSERT INTO cocktail_ingredient (cocktail_id, ingredient_id, quantity) VALUES
 (5, 9, '60ml'),   -- Aperol
 (5, 28, '90ml'),  -- Prosecco
 (5, 25, '30ml');  -- Soda
+
+
+
+
+
+-- ==================================================
+-- DATI DI ESEMPIO - COLORI
+-- ==================================================
+INSERT INTO color (name, hex_code, description) VALUES
+('Trasparente', '#FFFFFF', 'Nessun colore di sfondo'),
+('Rosso Classico', '#DC143C', 'Rosso intenso per cocktail energici'),
+('Arancione Aperitivo', '#FF8C00', 'Arancione vivace per aperitivi'),
+('Giallo Tropicale', '#FFD700', 'Giallo brillante per cocktail esotici'),
+('Verde Mojito', '#90EE90', 'Verde fresco per cocktail alla menta'),
+('Azzurro Caraibico', '#87CEEB', 'Azzurro chiaro per cocktail estivi'),
+('Blu Oceano', '#1E90FF', 'Blu profondo per cocktail eleganti'),
+('Viola Elegante', '#9370DB', 'Viola raffinato per cocktail sofisticati'),
+('Rosa Romantico', '#FF69B4', 'Rosa tenue per cocktail dolci'),
+('Marrone Caffè', '#8B4513', 'Marrone caldo per cocktail al caffè'),
+('Nero Elegante', '#2C2C2C', 'Nero intenso per cocktail forti'),
+('Grigio Moderno', '#808080', 'Grigio neutro per stile minimalista');
+
 
 -- ==================================================
 -- RIEPILOGO STRUTTURA

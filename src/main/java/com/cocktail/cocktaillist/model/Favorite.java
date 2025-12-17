@@ -33,7 +33,12 @@ public class Favorite {
      */
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "cocktail_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties("favorites")
     private Cocktail cocktail;
+  
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "color_id")
+    private Color color;
 
     /**
      * Data/ora in cui è stato aggiunto ai preferiti
@@ -87,5 +92,13 @@ public class Favorite {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Color getColor() {
+        return color;
+    }
+
+    public void setColor(Color color) {
+        this.color = color;
     }
 }

@@ -24,6 +24,9 @@ public class FavoriteService {
     @Autowired
     private CocktailRepository cocktailRepository;
 
+    @Autowired
+    private com.cocktail.cocktaillist.repository.ColorRepository colorRepository;
+
     /**
      * Aggiunge un cocktail ai preferiti dell'utente
      * 
@@ -62,7 +65,7 @@ public class FavoriteService {
     }
 
     /**
-     * Ottiene tutti i cocktail preferiti di un utente
+     * Ottiene tutti i cocktail preferiti di un utente (solo cocktail, senza colori)
      * 
      * @param userId ID utente dal JWT
      * @return Lista di cocktail preferiti
@@ -74,6 +77,16 @@ public class FavoriteService {
         return favorites.stream()
                 .map(Favorite::getCocktail)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Ottiene tutti i preferiti con colori personalizzati
+     * 
+     * @param userId ID utente dal JWT
+     * @return Lista di Favorite (con cocktail + colore)
+     */
+    public List<Favorite> getUserFavoritesWithColors(String userId) {
+        return favoriteRepository.findByUserId(userId);
     }
 
     /**
@@ -131,5 +144,53 @@ public class FavoriteService {
             addFavorite(userId, cocktailId);
             return true; // Aggiunto
         }
+    }
+
+    /**
+     * Aggiorna il colore di un cocktail preferito tramite ID colore.
+     * 
+     * @param userId ID dell'utente dal JWT
+     * @param cocktailId ID del cocktail
+     * @param colorId ID del colore da assegnare
+     * @return Il preferito aggiornato
+     * @throws RuntimeException se il cocktail non è nei preferiti o il colore non esiste
+     */
+    public Favorite updateFavoriteColor(String userId, Long cocktailId, Long colorId) {
+        // Verifica che il cocktail sia nei preferiti dell'utente
+        Favorite favorite = favoriteRepository.findByUserIdAndCocktailId(userId, cocktailId)
+                .orElseThrow(() -> new RuntimeException(
+                        "Cocktail non trovato nei preferiti. Aggiungi prima il cocktail ai preferiti."));
+        
+        // Verifica che il colore esista
+        com.cocktail.cocktaillist.model.Color color = colorRepository.findById(colorId)
+                .orElseThrow(() -> new RuntimeException("Colore non trovato con ID: " + colorId));
+        
+        // Aggiorna il colore
+        favorite.setColor(color);
+        return favoriteRepository.save(favorite);
+    }
+
+    /**
+     * Aggiorna il colore di un cocktail preferito tramite nome colore.
+     * 
+     * @param userId ID dell'utente dal JWT
+     * @param cocktailId ID del cocktail
+     * @param colorName Nome del colore da assegnare (es: "Rosso Classico")
+     * @return Il preferito aggiornato
+     * @throws RuntimeException se il cocktail non è nei preferiti o il colore non esiste
+     */
+    public Favorite updateFavoriteColorByName(String userId, Long cocktailId, String colorName) {
+        // Verifica che il cocktail sia nei preferiti dell'utente
+        Favorite favorite = favoriteRepository.findByUserIdAndCocktailId(userId, cocktailId)
+                .orElseThrow(() -> new RuntimeException(
+                        "Cocktail non trovato nei preferiti. Aggiungi prima il cocktail ai preferiti."));
+        
+        // Cerca il colore per nome
+        com.cocktail.cocktaillist.model.Color color = colorRepository.findByName(colorName)
+                .orElseThrow(() -> new RuntimeException("Colore non trovato con nome: " + colorName));
+        
+        // Aggiorna il colore
+        favorite.setColor(color);
+        return favoriteRepository.save(favorite);
     }
 }

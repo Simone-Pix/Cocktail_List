@@ -25,6 +25,16 @@ public interface FavoriteRepository extends JpaRepository<Favorite, Long> {
     List<Favorite> findByUserId(String userId);
 
     /**
+     * Trova tutti i preferiti di un utente con caricamento esplicito dei colori
+     * JOIN FETCH garantisce che i colori siano caricati nella stessa query
+     * 
+     * @param userId ID utente dal JWT
+     * @return Lista di Favorite con cocktail e colori caricati
+     */
+    @Query("SELECT f FROM Favorite f LEFT JOIN FETCH f.color LEFT JOIN FETCH f.cocktail WHERE f.userId = :userId")
+    List<Favorite> findByUserIdWithColors(String userId);
+
+    /**
      * Trova un preferito specifico di un utente
      * Spring genera: SELECT * FROM favorite WHERE user_id = ? AND cocktail_id = ?
      * 
