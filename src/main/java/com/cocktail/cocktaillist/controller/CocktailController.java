@@ -109,7 +109,6 @@ public class CocktailController {
         // Estrai i ruoli correttamente da realm_access
         Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
         profile.put("roles", realmAccess != null ? realmAccess.get("roles") : null);
-
         profile.put("tokenExpiration", jwt.getExpiresAt());
 
         // Aggiungi il conteggio dei cocktail preferiti
