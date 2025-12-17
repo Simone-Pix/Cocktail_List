@@ -289,8 +289,6 @@ public class AuthController {
             errors.put("username", "Username obbligatorio");
         } else if (username.length() < 3) {
             errors.put("username", "Username deve essere almeno 3 caratteri");
-        } else if (username.length() < 3) {
-            errors.put("username", "Username deve essere almeno 3 caratteri");
         } else if (username.length() > 50) {
             errors.put("username", "Username troppo lungo (max 50 caratteri)");
         }
