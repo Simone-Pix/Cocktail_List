@@ -291,29 +291,15 @@ public class CocktailController {
         }
     }
 
-    /**
-     * Crea un nuovo cocktail (USER e ADMIN) - Versione con parametri form.
-     * POST http://localhost:8081/api/cocktails/form
-     * Header: Authorization: Bearer <token>
-     * Form params: name, description, category, glassType, etc.
-     * Body: JSON array degli ingredienti
-     *
-     * @param name Nome del cocktail (obbligatorio)
-     * @param description Descrizione del cocktail
-     * @param category Categoria
-     * @param glassType Tipo di bicchiere
-     * @param preparationMethod Metodo di preparazione
-     * @param imageUrl URL immagine
-     * @param alcoholic Se è alcolico (true/false)
-     * @param ingredientsJson JSON array con ingredienti
-     */
+    // ⚠️ DEPRECATED - Usa /api/cocktails con JSON body per mobile
+    // Questo endpoint usa @RequestParam (form) + JSON body ibrido
+    // Mantenuto solo per compatibilità con Swagger UI
+    /*
     @PostMapping("/cocktails/form")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @Operation(
-        summary = "Crea un nuovo cocktail (Form)",
-        description = "Crea un cocktail usando parametri form individuali. " +
-                      "Gli ingredienti vanno passati come JSON array nel body. " +
-                      "Esempio body: [{\"name\":\"Rum\",\"quantity\":\"50ml\",\"category\":\"Spirit\",\"unit\":\"ml\"}]"
+        summary = "Crea un nuovo cocktail (Form) - DEPRECATED",
+        description = "⚠️ DEPRECATO: Usa POST /api/cocktails con JSON body completo per app mobile."
     )
     public ResponseEntity<Cocktail> createCocktailForm(
             @RequestParam String name,
@@ -341,6 +327,7 @@ public class CocktailController {
             return ResponseEntity.badRequest().build();
         }
     }
+    */
 
     /**
      * Aggiorna un cocktail esistente (USER e ADMIN).
@@ -397,22 +384,15 @@ public class CocktailController {
         }
     }
 
-    /**
-     * Aggiunge un singolo ingrediente a un cocktail (USER e ADMIN) - Versione con parametri form.
-     * POST http://localhost:8081/api/cocktails/{id}/ingredients/form
-     *
-     * @param id ID del cocktail
-     * @param name Nome dell'ingrediente (obbligatorio)
-     * @param quantity Quantità (obbligatorio)
-     * @param category Categoria dell'ingrediente (opzionale)
-     * @param unit Unità di misura (opzionale)
-     */
+    // ⚠️ DEPRECATED - Usa /api/cocktails/{id}/ingredients con JSON body per mobile
+    // Questo endpoint usa @RequestParam (form) invece di JSON body
+    // Mantenuto solo per compatibilità con Swagger UI
+    /*
     @PostMapping("/cocktails/{id}/ingredients/form")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @Operation(
-        summary = "Aggiungi un ingrediente a un cocktail (Form)",
-        description = "Aggiunge un singolo ingrediente usando parametri form individuali. " +
-                      "Se l'ingrediente non esiste, viene creato automaticamente."
+        summary = "Aggiungi un ingrediente a un cocktail (Form) - DEPRECATED",
+        description = "⚠️ DEPRECATO: Usa POST /api/cocktails/{id}/ingredients con JSON body per app mobile."
     )
     public ResponseEntity<Cocktail> addIngredientForm(
             @PathVariable Long id,
@@ -439,6 +419,7 @@ public class CocktailController {
             return ResponseEntity.badRequest().body(null);
         }
     }
+    */
 
     // METODO DEPRECATO - Eliminazione per ID
     // /**

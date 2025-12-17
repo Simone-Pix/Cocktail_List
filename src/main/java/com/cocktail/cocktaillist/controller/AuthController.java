@@ -39,11 +39,15 @@ public class AuthController {
         "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
     );
 
+    // ⚠️ DEPRECATED - Usa /api/auth/login/json per mobile
+    // Questo endpoint usa @RequestParam (form) invece di JSON body
+    // Mantenuto solo per compatibilità con Swagger UI
+    /*
     @PostMapping("/login")
     @Operation(
-        summary = "Login con username e password (Form)",
-        description = "Effettua il login con username e password usando form params e ricevi il token JWT. " +
-                     "Usa il token nel campo 'Bearer Authentication' di Swagger per autenticarti negli altri endpoint."
+        summary = "Login con username e password (Form) - DEPRECATED",
+        description = "⚠️ DEPRECATO: Usa /api/auth/login/json per app mobile. " +
+                     "Questo endpoint accetta solo form params, non JSON body."
     )
     public ResponseEntity<?> login(
             @RequestParam String username,
@@ -51,14 +55,16 @@ public class AuthController {
         LoginRequest loginRequest = new LoginRequest(username, password);
         return performLogin(loginRequest);
     }
+    */
 
-    @PostMapping("/login/json")
+    @PostMapping("/login")
     @Operation(
         summary = "Login con username e password (JSON)",
         description = "Effettua il login con username e password usando JSON body e ricevi il token JWT. " +
-                     "Usa il token nel campo 'Bearer Authentication' di Swagger per autenticarti negli altri endpoint."
+                     "Usa il token nel campo 'Bearer Authentication' di Swagger per autenticarti negli altri endpoint. " +
+                     "Body esempio: {\"username\": \"simone@test.com\", \"password\": \"123456\"}"
     )
-    public ResponseEntity<?> loginJson(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
         return performLogin(loginRequest);
     }
 
@@ -129,12 +135,10 @@ public class AuthController {
     @PostMapping("/refresh")
     @Operation(
         summary = "Rinnova il token JWT",
-        description = "Ottieni un nuovo access_token."+
-                      "Per Refreshare, eseguire il logOut da Authorize (bottone in alto a destra)"+
-                      "e inserire il Refresh_token ricevuto al login."
+        description = "Ottieni un nuovo access_token usando il refresh_token. " +
+                      "Body esempio: {\"refreshToken\": \"eyJhbGciOiJIUzI1...\"}"
     )
-    public ResponseEntity<?> refreshToken(@RequestParam String refreshToken) {
-        RefreshRequest refreshRequest = new RefreshRequest(refreshToken);
+    public ResponseEntity<?> refreshToken(@RequestBody RefreshRequest refreshRequest) {
         try {
             String tokenUrl = keycloakUrl + "/realms/cocktail_realm/protocol/openid-connect/token";
             
@@ -173,18 +177,20 @@ public class AuthController {
 
     @PostMapping("/register")
     @Operation(
-        summary = "Registra nuovo utente",
-        description = "Crea un nuovo account utente con form data. " +
+        summary = "Registra nuovo utente (JSON)",
+        description = "Crea un nuovo account utente con JSON body. " +
                      "Dopo la registrazione, l'utente può fare login immediatamente. " +
-                     "Il nuovo utente riceve automaticamente il ruolo USER."
+                     "Il nuovo utente riceve automaticamente il ruolo USER. " +
+                     "Body esempio: {\"username\": \"mario\", \"email\": \"mario@test.com\", \"password\": \"123456\", \"confirmPassword\": \"123456\"}"
     )
-    public ResponseEntity<?> register(
-            @RequestParam String username,
-            @RequestParam String email,
-            @RequestParam String password,
-            @RequestParam String confirmPassword,
-            @RequestParam(required = false) String firstName,
-            @RequestParam(required = false) String lastName) {
+    public ResponseEntity<?> register(@RequestBody RegisterRequest registerRequest) {
+        // Estrai dati dal DTO
+        String username = registerRequest.getUsername();
+        String email = registerRequest.getEmail();
+        String password = registerRequest.getPassword();
+        String confirmPassword = registerRequest.getConfirmPassword();
+        String firstName = registerRequest.getFirstName();
+        String lastName = registerRequest.getLastName();
         try {
             // Validazione input
             Map<String, String> validationErrors = validateRegistrationData(
@@ -204,7 +210,8 @@ public class AuthController {
             );
 
             // Auto-login dopo registrazione
-            ResponseEntity<?> loginResponse = login(username, password);
+            LoginRequest loginRequest = new LoginRequest(username, password);
+            ResponseEntity<?> loginResponse = login(loginRequest);
             
             if (loginResponse.getStatusCode() == HttpStatus.OK && loginResponse.getBody() != null) {
                 Object loginBody = loginResponse.getBody();
