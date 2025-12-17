@@ -63,6 +63,182 @@ docker-compose ps
 
 Tutti i container devono essere nello stato `running/healthy`.
 
+### 4. Configurazione Keycloak (Prima Installazione)
+
+**⚠️ IMPORTANTE**: Alla prima installazione, Keycloak parte con database vuoto e richiede configurazione.
+
+Hai **3 opzioni** per configurare Keycloak:
+
+#### **Opzione A: Configurazione Manuale (Più Semplice)**
+
+1. Apri il browser su `http://localhost:8080/admin`
+2. Login con:
+   - Username: `admin`
+   - Password: `admin`
+
+3. **Crea il Realm**:
+   - Clicca su "master" in alto a sinistra
+   - Clicca "Create Realm"
+   - Nome: `cocktail_realm` (⚠️ con **underscore**, non trattino!)
+   - Clicca "Create"
+
+4. **Crea i Ruoli**:
+   - Menu "Realm roles"
+   - Clicca "Create role"
+   - Nome: `USER` → Save
+   - Ripeti per: `ADMIN`
+
+5. **Crea il Client**:
+   - Menu "Clients" → "Create client"
+   - Client ID: `cocktail-client`
+   - Client Protocol: `openid-connect`
+   - Clicca "Next"
+   - Client authentication: `OFF` (public client)
+   - Direct access grants: `ON` ✅
+   - Clicca "Save"
+   - Tab "Settings":
+     - Valid redirect URIs: `http://localhost:8081/*`
+     - Web origins: `http://localhost:3000` (per frontend)
+   - Clicca "Save"
+
+6. **Crea Utente di Test**:
+   - Menu "Users" → "Add user"
+   - Username: `simone@test.com`
+   - Email: `simone@test.com`
+   - Clicca "Create"
+   - Tab "Credentials":
+     - Set password: `123456`
+     - Temporary: `OFF` ⚠️
+     - Clicca "Set password"
+   - Tab "Role mappings":
+     - Clicca "Assign role"
+     - Seleziona `USER` e `ADMIN`
+     - Clicca "Assign"
+
+7. **Aumenta Durata Token** (opzionale per sviluppo):
+   - Menu "Realm settings" → Tab "Tokens"
+   - Access Token Lifespan: `10 minuti` (invece di 5)
+   - Clicca "Save"
+
+8. **Verifica Configurazione**:
+   ```powershell
+   # Testa il login
+   curl -X POST http://localhost:8080/realms/cocktail_realm/protocol/openid-connect/token `
+     -d "grant_type=password" `
+     -d "client_id=cocktail-client" `
+     -d "username=simone@test.com" `
+     -d "password=123456"
+   ```
+   Se ricevi un JSON con `access_token`, funziona! ✅
+
+---
+
+#### **Opzione B: Script Automatico** (Richiede curl e jq)
+
+Scarica e esegui lo script di setup:
+
+```bash
+# Linux/Mac
+chmod +x setup-keycloak.sh
+./setup-keycloak.sh
+
+# Windows PowerShell
+.\setup-keycloak.ps1
+```
+
+**Script setup-keycloak.sh** (da creare):
+```bash
+#!/bin/bash
+echo "⏳ Attendo che Keycloak sia pronto..."
+until curl -s http://localhost:8080/health/ready | grep -q "UP"; do
+  sleep 2
+done
+
+echo "🔑 Ottengo token admin..."
+TOKEN=$(curl -s -X POST http://localhost:8080/realms/master/protocol/openid-connect/token \
+  -d "client_id=admin-cli" \
+  -d "username=admin" \
+  -d "password=admin" \
+  -d "grant_type=password" | jq -r .access_token)
+
+echo "🌍 Creo realm cocktail_realm..."
+curl -X POST http://localhost:8080/admin/realms \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"realm": "cocktail_realm", "enabled": true}'
+
+echo "👤 Creo ruoli USER e ADMIN..."
+curl -X POST http://localhost:8080/admin/realms/cocktail_realm/roles \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "USER"}'
+
+curl -X POST http://localhost:8080/admin/realms/cocktail_realm/roles \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "ADMIN"}'
+
+echo "🔌 Creo client cocktail-client..."
+curl -X POST http://localhost:8080/admin/realms/cocktail_realm/clients \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clientId": "cocktail-client",
+    "publicClient": true,
+    "directAccessGrantsEnabled": true,
+    "redirectUris": ["http://localhost:8081/*"],
+    "webOrigins": ["http://localhost:3000"]
+  }'
+
+echo "✅ Keycloak configurato! Ora crea manualmente l'utente da http://localhost:8080/admin"
+```
+
+---
+
+#### **Opzione C: Realm Import Automatico** (Avanzata)
+
+Importa automaticamente un realm pre-configurato all'avvio:
+
+1. **Esporta il realm** (dopo averlo configurato una volta):
+   ```bash
+   docker exec -it cocktail_list-keycloak-1 /opt/keycloak/bin/kc.sh export \
+     --dir /tmp --realm cocktail_realm
+   docker cp cocktail_list-keycloak-1:/tmp/cocktail_realm-realm.json ./keycloak-config/
+   ```
+
+2. **Modifica docker-compose.yml**:
+   ```yaml
+   keycloak:
+     image: quay.io/keycloak/keycloak:23.0
+     command: start-dev --import-realm
+     volumes:
+       - ./keycloak-config:/opt/keycloak/data/import  # ← Aggiungi questa riga
+     environment:
+       # ... resto invariato
+   ```
+
+3. **Riavvia i container**:
+   ```bash
+   docker-compose down
+   docker-compose up -d
+   ```
+
+Ora ogni `docker-compose up` importa automaticamente il realm! 🎯
+
+---
+
+### Quale Opzione Scegliere?
+
+| Opzione | Pro | Contro | Consigliata per |
+|---------|-----|--------|-----------------|
+| **A - Manuale** | ✅ Semplice, nessun tool extra | ❌ Da ripetere su ogni macchina | Sviluppo singolo |
+| **B - Script** | ✅ Veloce dopo prima config | ❌ Richiede curl/jq | Team piccoli |
+| **C - Import** | ✅ Completamente automatico | ❌ Setup iniziale complesso | Team/Produzione |
+
+**Per iniziare, usa l'Opzione A (Manuale).** Una volta configurato, puoi esportare il realm con Opzione C per i tuoi colleghi.
+
+---
+
 ## Utilizzo
 
 ### Accesso a Swagger UI
