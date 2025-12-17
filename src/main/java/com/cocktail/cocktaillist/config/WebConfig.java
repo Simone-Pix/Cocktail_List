@@ -1,23 +1,29 @@
 package com.cocktail.cocktaillist.config;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * Configurazione Web MVC
- * Configura il redirect automatico dalla home page a Swagger UI
+ * 
+ * NOTA: Il redirect automatico a Swagger UI è stato RIMOSSO per permettere
+ * l'accesso alle API da app mobile e client frontend.
+ * 
+ * Per accedere a Swagger UI: http://localhost:8081/swagger-ui/index.html
+ * Per testare le API: usa direttamente gli endpoint /api/*
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
-
-    /**
-     * Redirect da / a /swagger-ui/index.html
-     * Quando visiti http://localhost:8081/ vieni automaticamente reindirizzato a Swagger
-     */
+    // Redirect rimosso - app mobile necessitano accesso diretto alle API
     @Override
-    public void addViewControllers(ViewControllerRegistry registry) {
-        registry.addRedirectViewController("/", "/swagger-ui/index.html");
-        registry.addRedirectViewController("/swagger-ui", "/swagger-ui/index.html");
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/api/**")
+            .allowedOriginPatterns("*") // Permetti tutte le origini (mobile, web, etc.)
+            .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
+            .allowedHeaders("*")
+            .allowCredentials(false) // Mobile/API REST non usano cookie
+            .maxAge(3600); // Cache preflight per 1 ora
     }
 }
