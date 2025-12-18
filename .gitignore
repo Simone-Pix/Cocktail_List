@@ -40,3 +40,6 @@ mysql_data/
 
 # OS
 Thumbs.db
+
+#Cartella upload
+uploads/
