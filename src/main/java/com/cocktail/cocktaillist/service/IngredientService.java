@@ -259,4 +259,18 @@ public class IngredientService {
             .limit(10)
             .collect(java.util.stream.Collectors.toList());
     }
+
+    /**
+     * Raggruppa tutti gli ingredienti per categoria
+     * 
+     * @return Mappa con categoria come chiave e lista di ingredienti come valore
+     */
+    public java.util.Map<String, List<Ingredient>> getIngredientsGroupedByCategory() {
+        List<Ingredient> allIngredients = getAllIngredients();
+        
+        return allIngredients.stream()
+            .collect(java.util.stream.Collectors.groupingBy(
+                ingredient -> ingredient.getCategory() != null ? ingredient.getCategory() : "Altro"
+            ));
+    }
 }

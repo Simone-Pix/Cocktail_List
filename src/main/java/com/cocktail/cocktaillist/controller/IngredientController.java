@@ -2,6 +2,9 @@ package com.cocktail.cocktaillist.controller;
 
 import com.cocktail.cocktaillist.model.Ingredient;
 import com.cocktail.cocktaillist.service.IngredientService;
+
+import io.swagger.v3.oas.annotations.Operation;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -70,6 +73,9 @@ public class IngredientController {
      * @return Pagina di ingredienti che matchano
      */
     @GetMapping("/search")
+    @Operation(
+        summary = "Analizza gli Id dei cocktail per identificare quanti ID dei Cocktail Rimangono"
+    )
     public ResponseEntity<Page<Ingredient>> searchIngredients(
             @RequestParam String name,
             @RequestParam(defaultValue = "0") int page,
@@ -184,5 +190,29 @@ public class IngredientController {
             error.put("error", e.getMessage());
             return ResponseEntity.badRequest().body(error);
         }
+    }
+
+    /**
+     * Ottieni tutti gli ingredienti raggruppati per categoria.
+     * GET http://localhost:8081/api/ingredients/grouped-by-category
+     * 
+     * Risposta esempio:
+     * {
+     *   "Spiriti": [
+     *     {"id": 1, "name": "Vodka", "category": "Spiriti"},
+     *     {"id": 2, "name": "Rum", "category": "Spiriti"}
+     *   ],
+     *   "Frutta": [
+     *     {"id": 10, "name": "Limone", "category": "Frutta"}
+     *   ]
+     * }
+     */
+    @GetMapping("/grouped-by-category")
+     @Operation(
+        summary = "Visualizzazione ingredienti raggruppati per categoria" 
+    )
+    public ResponseEntity<Map<String, List<Ingredient>>> getIngredientsGroupedByCategory() {
+        Map<String, List<Ingredient>> grouped = ingredientService.getIngredientsGroupedByCategory();
+        return ResponseEntity.ok(grouped);
     }
 }
