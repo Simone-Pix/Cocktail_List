@@ -10,7 +10,14 @@ spring:
     username: cocktail_user
     password: cocktail_pass
     driver-class-name: com.mysql.cj.jdbc.Driver
-  
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+      file-size-threshold: 2MB
+
   jpa:
     hibernate:
       ddl-auto: none
@@ -25,6 +32,10 @@ spring:
         jwt:
           # Usa solo jwk-set-uri senza issuer-uri per accettare token da localhost E keycloak
           jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8080}/realms/cocktail_realm/protocol/openid-connect/certs
+
+upload:
+  path:  uploads/cocktails
+
 
 keycloak:
   realm: cocktail_realm
@@ -65,6 +76,10 @@ spring:
         jwt:
           # Usa solo jwk-set-uri per validare la firma, accetta token da localhost (browser) e keycloak (Docker)
           jwk-set-uri: http://keycloak:8080/realms/cocktail_realm/protocol/openid-connect/certs
+
+upload:
+  path: /app/uploads/cocktails
+
 
 keycloak:
   auth-server-url: http://keycloak:8080
