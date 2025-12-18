@@ -40,11 +40,14 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/", "/swagger-ui").permitAll() // Home e redirect a Swagger
                 .requestMatchers("/api/public/**").permitAll() // Endpoint pubblici (include /api/public/colors)
+                .requestMatchers("/api/ingredients/grouped-by-category").permitAll() // Endpoint pubblico per ingredienti raggruppati
                 .requestMatchers("/api/auth/**").permitAll() // Endpoint di autenticazione (login, refresh)
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll() // Swagger UI e OpenAPI docs
+                .requestMatchers("/api/images/upload").hasAnyRole("USER", "ADMIN") // Upload richiede autenticazione
+                .requestMatchers("/api/images/delete/**").hasRole("ADMIN") // Delete solo ADMIN
+                .requestMatchers("/api/images/**").permitAll() // GET immagini pubblico (serve file statici)
                 .requestMatchers("/api/user/**").hasAnyRole("USER", "ADMIN") // Richiede ruolo USER o ADMIN
                 .requestMatchers("/api/admin/**").hasRole("ADMIN") // Solo ADMIN
-                //requestMatchers(/api/images/**).hasAnyRole("USER","ADMIN")
                 .anyRequest().authenticated() // Tutti gli altri endpoint richiedono autenticazione
             )
             .oauth2ResourceServer(oauth2 -> oauth2

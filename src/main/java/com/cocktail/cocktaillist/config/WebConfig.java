@@ -23,7 +23,7 @@ public class WebConfig implements WebMvcConfigurer {
             .allowedOriginPatterns("*") // Permetti tutte le origini (mobile, web, etc.)
             .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
             .allowedHeaders("*")
-            .allowCredentials(false) // Mobile/API REST non usano cookie
+            .allowCredentials(true) // Necessario per JWT Bearer tokens
             .maxAge(3600); // Cache preflight per 1 ora
     }
 }
