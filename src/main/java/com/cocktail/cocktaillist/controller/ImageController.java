@@ -97,7 +97,7 @@ public class ImageController {
     /**
      * GET immagine (pubblico)
      */
-    @GetMapping("/{filename:.+}")
+    @GetMapping("/{filename}")
     @Operation(
             summary = "Scarica un'immagine",
             description = "Endpoint pubblico per servire le immagini dei cocktail"
@@ -137,7 +137,7 @@ public class ImageController {
     /**
      * DELETE immagine (solo ADMIN)
      */
-    @DeleteMapping("/delete/{filename:.+}")
+    @DeleteMapping("/delete/{filename}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(
             summary = "Elimina un'immagine (ADMIN)",
