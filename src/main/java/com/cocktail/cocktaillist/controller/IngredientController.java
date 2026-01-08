@@ -74,7 +74,7 @@ public class IngredientController {
      */
     @GetMapping("/search")
     @Operation(
-        summary = "Analizza gli Id dei cocktail per identificare quanti ID dei Cocktail Rimangono"
+        summary = "Cerca gli ingredienti per nome"
     )
     public ResponseEntity<Page<Ingredient>> searchIngredients(
             @RequestParam String name,
