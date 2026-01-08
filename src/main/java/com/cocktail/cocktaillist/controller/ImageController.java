@@ -38,7 +38,7 @@ public class ImageController {
     @Value("${upload.path}")
     private String uploadPath;
 
-    @PostMapping("/upload")
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @Operation(
             summary = "Carica un'immagine",
